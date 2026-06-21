@@ -113,16 +113,15 @@ WSGI_APPLICATION = 'backend.config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+import dj_database_url
+import os
+
 DATABASES = {
-    'default': {
-        'ENGINE':   os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME':     os.environ.get('DB_NAME'),
-        'USER':     os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST':     os.environ.get('DB_HOST', 'localhost'),
-        'PORT':     os.environ.get('DB_PORT', '5432'),
-        'OPTIONS':  {'sslmode': os.environ.get('DB_SSLMODE', 'disable')},
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 # Password validation
@@ -188,10 +187,10 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.environ.get(
     'GOOGLE_REDIRECT_URI',
-    'http://127.0.0.1:8000/api/auth/google/callback/'
+    'https://permis-tic-api.onrender.com/api/auth/google/callback/'
 )
 
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5181')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://permis-tic.vercel.app')
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
