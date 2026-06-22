@@ -223,11 +223,20 @@ onMounted(async () => {
       return
     }
 
+    // ✅ Nouveau compte Google (is_new_user=1) → afficher directement le formulaire
+    // de sélection de niveau sans appeler l'API inscription (qui retournerait vide)
+    const isNewUser = route.query.is_new_user === '1'
+
     // Charger toutes les formations disponibles
     try {
       const { data: fData } = await api.get('/formations/')
       formations.value = fData.results || fData
     } catch { formations.value = [] }
+
+    if (isNewUser) {
+      statut.value = 'nouveau'
+      return
+    }
 
     // Récupérer les inscriptions existantes de l'utilisateur
     try {
@@ -242,8 +251,8 @@ onMounted(async () => {
         const confirmee  = inscriptions.find(i => i.statut === 'confirme')
         const enAttente  = inscriptions.find(i => i.statut === 'en_attente')
 
-        // Si l'utilisateur vient pour s'inscrire à un NOUVEAU cours (paramètre new_inscription=1)
-        // OU s'il n'a que des inscriptions rejetées → montrer le formulaire
+        // new_inscription=1 signifie que l'étudiant a déjà une inscription confirmée
+        // et veut en ajouter une nouvelle (ex: changer de cours)
         const veutNouvelleInscription = route.query.new_inscription === '1'
 
         if (veutNouvelleInscription || (!confirmee && !enAttente)) {

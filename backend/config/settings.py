@@ -225,6 +225,10 @@ STORAGES = {
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# ✅ Limite de taille des uploads (10 Mo max)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 Mo
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 Mo
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
@@ -240,3 +244,5 @@ EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER or 'noreply@permistic.mg'
+# ✅ Timeout SMTP global : évite de bloquer le worker Gunicorn si Gmail est lent
+EMAIL_TIMEOUT       = 15

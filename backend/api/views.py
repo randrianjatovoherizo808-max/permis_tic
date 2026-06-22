@@ -1,3 +1,5 @@
+import socket
+
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
@@ -78,7 +80,16 @@ def _send_html_email(subject, to_email, preheader, body_html, cta_link=None, cta
     from_email = settings.EMAIL_HOST_USER or settings.DEFAULT_FROM_EMAIL or 'noreply@permistic.mg'
     msg = EmailMultiAlternatives(subject, text, from_email, [to_email])
     msg.attach_alternative(html, "text/html")
-    msg.send()
+
+    # ✅ Timeout socket explicite : évite de bloquer le worker Gunicorn
+    # si le serveur SMTP (Gmail) est lent ou ne répond pas.
+    # EMAIL_TIMEOUT dans settings.py fixe aussi le délai Django côté connexion.
+    _prev_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(15)
+    try:
+        msg.send()
+    finally:
+        socket.setdefaulttimeout(_prev_timeout)
 import requests
 import urllib.parse
 import uuid
@@ -427,8 +438,9 @@ def google_callback(request):
         user.set_unusable_password()
         user.save()
         Profil.objects.create(user=user, role='etudiant')
-        # Nouveau compte Google → inscription en_attente automatique
-        # L'admin devra valider avant que l'étudiant accède aux cours
+        # ✅ Nouveau compte Google : pas d'inscription automatique créée ici.
+        # Le frontend détectera is_new_user=1 et redirigera vers la page
+        # de sélection de niveau pour que l'étudiant choisisse sa formation.
     else:
         if not user.is_active:
             return redirect(f"{frontend_url}/login?error=account_disabled")
@@ -483,6 +495,8 @@ def google_callback(request):
         'niveaux_inscrits':      json.dumps(niveaux_inscrits),
         'new_inscription':       '1' if a_inscription_confirmee else '0',
         'photo_url':             photo_url,
+        # ✅ is_new_user=1 → le frontend doit rediriger vers la sélection de niveau
+        'is_new_user':           '1' if created else '0',
     })
     return redirect(f"{frontend_url}/auth/google/success?{params}")
 
@@ -658,6 +672,7 @@ def lecons_list(request):
         return Response(LeconSerializer(qs, many=True, context={'request': request}).data)
     if not is_staff_or_admin(request.user):
         return Response(status=403)
+    # ✅ Accepte multipart/form-data (avec fichier) ET JSON (sans fichier)
     s = LeconSerializer(data=request.data, context={'request': request})
     if s.is_valid():
         s.save()
@@ -674,6 +689,7 @@ def lecon_detail(request, pk):
     if not is_staff_or_admin(request.user):
         return Response(status=403)
     if request.method == 'PUT':
+        # ✅ partial=True : on peut modifier sans renvoyer le fichier si inchangé
         s = LeconSerializer(lecon, data=request.data, partial=True, context={'request': request})
         if s.is_valid():
             s.save()
