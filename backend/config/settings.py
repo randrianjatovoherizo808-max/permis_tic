@@ -252,7 +252,14 @@ CLOUDINARY_STORAGE = {
     'API_KEY':    os.environ.get('CLOUDINARY_API_KEY', '411919539935376'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'DuImpBjCW5GLfVqllDZ6mmublZA'),
 }
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
