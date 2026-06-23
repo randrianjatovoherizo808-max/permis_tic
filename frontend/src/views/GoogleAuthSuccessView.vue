@@ -323,7 +323,19 @@ async function valider() {
     await api.post('/google/register/formation/', payload)
     statut.value = 'inscription_reussie'
   } catch (e) {
-    error.value = e.response?.data?.error || "Erreur lors de l'inscription."
+    const code = e.response?.data?.code
+    const msg  = e.response?.data?.error
+
+    if (code === 'already_confirmed') {
+      // Deja inscrit et confirme → aller directement a l'espace apprenant
+      router.replace('/espace-apprenant')
+      return
+    } else if (code === 'already_pending') {
+      // Deja en attente → montrer le statut d'attente
+      statut.value = 'en_attente'
+    } else {
+      error.value = msg || "Erreur lors de l'inscription."
+    }
   } finally {
     inscLoading.value = false
   }

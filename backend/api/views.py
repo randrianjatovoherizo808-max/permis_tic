@@ -1,4 +1,11 @@
 import socket
+import json
+import logging
+import random
+import uuid
+import urllib.parse
+
+import requests
 
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -90,9 +97,6 @@ def _send_html_email(subject, to_email, preheader, body_html, cta_link=None, cta
         msg.send()
     finally:
         socket.setdefaulttimeout(_prev_timeout)
-import requests
-import urllib.parse
-import uuid
 
 from .models import (
     Profil, Site, Formation, Lecon,
@@ -132,7 +136,6 @@ def is_staff_or_admin(user):
 @permission_classes([AllowAny])
 def forgot_password(request):
     """Étape 1 : envoie un code OTP à 6 chiffres (valide 10 min)."""
-    import random
     email = request.data.get('email', '').strip().lower()
     try:
         user = User.objects.get(email=email)
@@ -475,8 +478,6 @@ def google_callback(request):
         inscriptions = Inscription.objects.filter(utilisateur=user).values('niveau', 'statut')
         niveaux_inscrits = list(inscriptions)
 
-    import json
-
     # Vérifier si l'utilisateur a déjà une inscription confirmée (pour s'inscrire à un autre cours)
     a_inscription_confirmee = False
     if role == 'etudiant':
@@ -761,21 +762,25 @@ def inscrire_niveau(request):
     - Si formation_id fourni : unicité par (utilisateur, formation)
     - Sinon : unicité par (utilisateur, niveau) pour inscription générale
     """.strip()
-    niveau       = request.data.get('niveau', '').upper()
     telephone    = request.data.get('telephone', '')
     formation_id = request.data.get('formation_id', None)
 
-    if niveau not in ('A', 'B', 'C'):
-        return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
-
+    # Résoudre la formation en premier
     formation = None
     if formation_id:
         try:
             formation = Formation.objects.get(pk=formation_id)
-            # Niveau auto depuis la formation
-            niveau = formation.niveau
         except Formation.DoesNotExist:
             return Response({'error': 'Formation introuvable.'}, status=404)
+
+    # Niveau : depuis la formation si fournie, sinon depuis le payload
+    if formation:
+        niveau = formation.niveau
+    else:
+        niveau = str(request.data.get('niveau', '') or '').strip().upper()
+
+    if niveau not in ('A', 'B', 'C'):
+        return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
 
     # Vérifier doublon selon le contexte
     if formation:
@@ -1023,7 +1028,6 @@ def certificats_list(request):
     if s.is_valid():
         s.save()
         return Response(s.data, status=201)
-    import logging
     logging.getLogger(__name__).error("Certificat errors: %s", s.errors)
     return Response(s.errors, status=400)
 
@@ -1171,35 +1175,48 @@ def admin_reset(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def google_register_formation(request):
-    """Alias pour google : inscription par formation ou niveau."""
-    niveau       = request.data.get('niveau', '').upper()
+    """Inscription via Google : par formation ou par niveau general."""
     telephone    = request.data.get('telephone', '')
     formation_id = request.data.get('formation_id', None)
 
-    if niveau not in ('A', 'B', 'C'):
-        return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
-
+    # 1) Resolution de la formation
     formation = None
     if formation_id:
         try:
             formation = Formation.objects.get(pk=formation_id)
-            niveau = formation.niveau
         except Formation.DoesNotExist:
             return Response({'error': 'Formation introuvable.'}, status=404)
 
+    # 2) Resolution du niveau
+    # Si une formation est choisie, on prend son niveau ; sinon le champ 'niveau' du payload
     if formation:
-        existante = Inscription.objects.filter(utilisateur=request.user, formation=formation).first()
-        doublon_msg = f'Vous êtes déjà inscrit(e) à cette formation ({formation.nom}).'
+        niveau = formation.niveau
     else:
-        existante = Inscription.objects.filter(utilisateur=request.user, formation__isnull=True, niveau=niveau).first()
-        doublon_msg = f'Vous avez déjà une inscription pour le Niveau {niveau}.'
+        niveau = str(request.data.get('niveau', '') or '').strip().upper()
+
+    if niveau not in ('A', 'B', 'C'):
+        return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
+
+    # 3) Gestion des doublons
+    if formation:
+        existante   = Inscription.objects.filter(utilisateur=request.user, formation=formation).first()
+        doublon_msg = f"Vous etes deja inscrit(e) a la formation {formation.nom}."
+    else:
+        existante   = Inscription.objects.filter(utilisateur=request.user, formation__isnull=True, niveau=niveau).first()
+        doublon_msg = f"Vous avez deja une inscription pour le Niveau {niveau}."
 
     if existante:
-        if existante.statut in ('en_attente', 'confirme'):
-            return Response({'error': doublon_msg}, status=400)
+        if existante.statut == 'confirme':
+            return Response({'error': doublon_msg, 'code': 'already_confirmed'}, status=400)
+        elif existante.statut == 'en_attente':
+            return Response(
+                {'error': "Votre inscription est deja en attente de validation.", 'code': 'already_pending'},
+                status=400
+            )
         elif existante.statut == 'rejete':
             existante.delete()
 
+    # 4) Création de l'inscription
     insc = Inscription.objects.create(
         utilisateur=request.user,
         formation=formation,
@@ -1212,7 +1229,7 @@ def google_register_formation(request):
     niveau_label  = niveau_labels.get(niveau, f'Niveau {niveau}')
     nom_cours     = formation.nom if formation else niveau_label
 
-    # ── Email de confirmation « en attente de validation » ──────────────────
+    # 5) Email de confirmation
     try:
         _send_html_email(
             subject   = f'📋 Inscription {nom_cours} reçue – En attente de validation',
@@ -1232,9 +1249,41 @@ def google_register_formation(request):
             ),
         )
     except Exception:
-        pass
+        pass  # Ne pas bloquer l'inscription si l'email échoue
 
     return Response({
-        'message': f'Inscription à {nom_cours} enregistrée.',
+        'message': f"Inscription à {nom_cours} enregistrée.",
         'statut': insc.statut
     }, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def auto_login(request):
+    """Connexion automatique via lien email (uid + token Django)."""
+    uid_b64 = request.GET.get('uid', '')
+    token   = request.GET.get('token', '')
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5181')
+    try:
+        uid  = force_str(urlsafe_base64_decode(uid_b64))
+        user = User.objects.get(pk=uid)
+    except Exception:
+        return redirect(f"{frontend_url}/login?error=invalid_link")
+
+    if not default_token_generator.check_token(user, token):
+        return redirect(f"{frontend_url}/login?error=expired_link")
+
+    refresh = RefreshToken.for_user(user)
+    inscriptions = Inscription.objects.filter(utilisateur=user).values('niveau', 'statut')
+    niveaux_inscrits = list(inscriptions)
+    photo_url = getattr(getattr(user, 'profil', None), 'photo_url', '') or ''
+
+    params = urllib.parse.urlencode({
+        'access':           str(refresh.access_token),
+        'refresh':          str(refresh),
+        'role':             'etudiant',
+        'niveaux_inscrits': json.dumps(niveaux_inscrits),
+        'photo_url':        photo_url,
+        'is_new_user':      '0',
+    })
+    return redirect(f"{frontend_url}/auth/google/success?{params}")
