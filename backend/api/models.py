@@ -53,7 +53,7 @@ class Lecon(models.Model):
     contenu    = models.TextField(blank=True)
     ordre      = models.IntegerField(default=0)
     ressources = models.TextField(blank=True, help_text='URLs séparées par des virgules')
-    fichier    = models.FileField(upload_to='lecons/fichiers/', null=True, blank=True)
+    fichier = models.CharField(max_length=500, null=True, blank=True)
 
     class Meta:
         ordering = ['ordre']

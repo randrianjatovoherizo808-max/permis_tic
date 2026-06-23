@@ -110,13 +110,31 @@ class FormationSerializer(serializers.ModelSerializer):
 
 
 # ── Leçon ─────────────────────────────────────────────────────────────────────
+from cloudinary.uploader import upload as cloudinary_upload
+from cloudinary.models import CloudinaryField
+
 class LeconSerializer(serializers.ModelSerializer):
     formation_nom = serializers.CharField(source='formation.nom', read_only=True)
-
+    
     class Meta:
         model  = Lecon
         fields = ['id', 'formation', 'formation_nom', 'titre', 'contenu', 'ordre', 'ressources', 'fichier']
-
+    
+    def create(self, validated_data):
+        fichier = validated_data.pop('fichier', None)
+        lecon   = Lecon.objects.create(**validated_data)
+        if fichier:
+            # ✅ Upload en mode 'raw' pour accepter .docx, .pdf, .pptx etc.
+            result = cloudinary_upload(
+                fichier,
+                resource_type='raw',
+                folder='lecons/fichiers/',
+                use_filename=True,
+                unique_filename=True,
+            )
+            lecon.fichier = result['secure_url']
+            lecon.save()
+        return lecon
 
 # ── Inscription ───────────────────────────────────────────────────────────────
 class InscriptionSerializer(serializers.ModelSerializer):
