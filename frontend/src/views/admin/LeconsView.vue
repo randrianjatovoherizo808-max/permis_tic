@@ -141,12 +141,12 @@
 import { ref, onMounted } from 'vue'
 import api from '../../services/api'
 
-const lecons         = ref([])
-const formations     = ref([])
+const lecons          = ref([])
+const formations      = ref([])
 const filtreFormation = ref('')
-const showModal      = ref(false)
-const loading        = ref(false)
-const error          = ref('')
+const showModal       = ref(false)
+const loading         = ref(false)
+const error           = ref('')
 
 const form = ref({ id: null, titre: '', formation: '', contenu: '', ordre: 0, videoUrl: '', lienUrl: '', fichier: null, fichierNom: '', fichierExistant: null })
 
@@ -172,7 +172,7 @@ function ouvrirModal(l = null) {
       fichierExistant: l.fichier || null,
     }
   } else {
-    form.value = { id: null, titre: '', formation: filtreFormation.value || '', contenu: '', ordre: 0, videoUrl: '', lienUrl: '' }
+    form.value = { id: null, titre: '', formation: filtreFormation.value || '', contenu: '', ordre: 0, videoUrl: '', lienUrl: '', fichier: null, fichierNom: '', fichierExistant: null }
   }
   showModal.value = true
 }
@@ -202,15 +202,16 @@ async function sauvegarder() {
   try {
     const ressources = [form.value.videoUrl, form.value.lienUrl].filter(Boolean).join(',')
     const fd = new FormData()
-    fd.append('titre',     form.value.titre)
-    fd.append('formation', form.value.formation)
-    fd.append('contenu',   form.value.contenu)
-    fd.append('ordre',     form.value.ordre)
+    // ✅ ?? '' évite d'envoyer la string "null"/"undefined" que Django rejette
+    fd.append('titre',      form.value.titre      ?? '')
+    fd.append('formation',  form.value.formation  ?? '')
+    fd.append('contenu',    form.value.contenu     ?? '')
+    fd.append('ordre',      form.value.ordre       ?? 0)
     fd.append('ressources', ressources)
     if (form.value.fichier) {
       fd.append('fichier', form.value.fichier)
     } else if (form.value.fichierExistant === null && form.value.id) {
-      // Supprimer le fichier existant
+      // Signale au backend de supprimer le fichier existant
       fd.append('fichier', '')
     }
     const config = { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -231,18 +232,15 @@ async function sauvegarder() {
 
 async function supprimer(id) {
   if (!confirm('Supprimer cette leçon ?')) return
-await api.delete(`/lecons/${id}/`)
+  await api.delete(`/lecons/${id}/`)
   charger()
 }
 
 async function charger() {
   try {
-   const lRes = await api.get('/lecons/', {
-      params: filtreFormation.value
-        ? { formation: filtreFormation.value }
-        : {}
+    const lRes = await api.get('/lecons/', {
+      params: filtreFormation.value ? { formation: filtreFormation.value } : {}
     })
-
     lecons.value = lRes.data.results || lRes.data
   } catch (e) {
     console.error('Erreur leçons', e)
@@ -252,8 +250,6 @@ async function charger() {
   try {
     const fRes = await api.get('/formations/')
     formations.value = fRes.data.results || fRes.data
-
-    console.log('FORMATIONS', formations.value)
   } catch (e) {
     console.error('Erreur formations', e)
     formations.value = []

@@ -110,31 +110,53 @@ class FormationSerializer(serializers.ModelSerializer):
 
 
 # ── Leçon ─────────────────────────────────────────────────────────────────────
+import os
 from cloudinary.uploader import upload as cloudinary_upload
 from cloudinary.models import CloudinaryField
 
 class LeconSerializer(serializers.ModelSerializer):
     formation_nom = serializers.CharField(source='formation.nom', read_only=True)
-    
+
     class Meta:
         model  = Lecon
         fields = ['id', 'formation', 'formation_nom', 'titre', 'contenu', 'ordre', 'ressources', 'fichier']
-    
+
+    def _upload_fichier(self, fichier):
+        """Upload vers Cloudinary en précisant l'extension pour les fichiers ZIP-based (.docx, .pptx…)."""
+        ext = os.path.splitext(getattr(fichier, 'name', ''))[1].lstrip('.').lower() or None
+        upload_kwargs = dict(
+            resource_type='raw',
+            folder='lecons/fichiers/',
+            use_filename=True,
+            unique_filename=True,
+        )
+        if ext:
+            upload_kwargs['format'] = ext
+        result = cloudinary_upload(fichier, **upload_kwargs)
+        return result['secure_url']
+
     def create(self, validated_data):
         fichier = validated_data.pop('fichier', None)
         lecon   = Lecon.objects.create(**validated_data)
         if fichier:
-            # ✅ Upload en mode 'raw' pour accepter .docx, .pdf, .pptx etc.
-            result = cloudinary_upload(
-                fichier,
-                resource_type='raw',
-                folder='lecons/fichiers/',
-                use_filename=True,
-                unique_filename=True,
-            )
-            lecon.fichier = result['secure_url']
+            lecon.fichier = self._upload_fichier(fichier)
             lecon.save()
         return lecon
+
+    def update(self, instance, validated_data):
+        fichier = validated_data.pop('fichier', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if fichier == '':
+            # Suppression explicite du fichier existant
+            instance.fichier = None
+            instance.save()
+        elif fichier:
+            instance.fichier = self._upload_fichier(fichier)
+            instance.save()
+        return instance
+
 
 # ── Inscription ───────────────────────────────────────────────────────────────
 class InscriptionSerializer(serializers.ModelSerializer):
@@ -169,10 +191,10 @@ class InscriptionSerializer(serializers.ModelSerializer):
 
 # ── Session (Calendrier) ──────────────────────────────────────────────────────
 class SessionSerializer(serializers.ModelSerializer):
-    formation_nom  = serializers.CharField(source='formation.nom', read_only=True)
+    formation_nom    = serializers.CharField(source='formation.nom', read_only=True)
     formation_niveau = serializers.CharField(source='formation.niveau', read_only=True)
-    site_nom       = serializers.CharField(source='site.nom', read_only=True, allow_null=True)
-    formateur_nom  = serializers.SerializerMethodField()
+    site_nom         = serializers.CharField(source='site.nom', read_only=True, allow_null=True)
+    formateur_nom    = serializers.SerializerMethodField()
 
     class Meta:
         model  = Session
