@@ -46,6 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'django.contrib.sites',
+    'cloudinary_storage',  # ← ajouter
+    'cloudinary',          # ← ajouter
+    'django.contrib.admin',
 
     # ALLAUTH
     'allauth',
@@ -221,7 +224,13 @@ STORAGES = {
     },
 }
 
-# Fichiers uploadés
+# # Cloudinary — stockage fichiers uploadés (compatible Render)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', 'drxzeuaxp'),
+    'API_KEY':    os.environ.get('CLOUDINARY_API_KEY', '411919539935376'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'DuImpBjCW5GLfVqllDZ6mmublZA'),
+}
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
