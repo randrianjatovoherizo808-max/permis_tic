@@ -88,9 +88,6 @@ def _send_html_email(subject, to_email, preheader, body_html, cta_link=None, cta
     msg = EmailMultiAlternatives(subject, text, from_email, [to_email])
     msg.attach_alternative(html, "text/html")
 
-    # ✅ Timeout socket explicite : évite de bloquer le worker Gunicorn
-    # si le serveur SMTP (Gmail) est lent ou ne répond pas.
-    # EMAIL_TIMEOUT dans settings.py fixe aussi le délai Django côté connexion.
     _prev_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(15)
     try:
@@ -140,13 +137,10 @@ def forgot_password(request):
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        # Réponse neutre — ne pas révéler si l'email existe
         return Response({'message': 'Si cet email existe, un code vous a été envoyé.'})
 
-    # Invalide les anciens OTP de cet utilisateur
     OtpCode.objects.filter(user=user, used=False).update(used=True)
 
-    # Génère un code à 6 chiffres
     code = f"{random.randint(0, 999999):06d}"
     OtpCode.objects.create(user=user, code=code)
 
@@ -168,7 +162,7 @@ def forgot_password(request):
         ),
     )
     return Response({'message': 'Code envoyé'})
-    
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_otp(request):
@@ -209,10 +203,6 @@ def reset_password(request):
         return Response({'error': 'Compte introuvable.'}, status=400)
 
 
-
-
-
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -223,7 +213,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         username_or_email = attrs.get('username', '')
-        # Accepte email à la place du username
         try:
             user = User.objects.get(email=username_or_email)
             attrs['username'] = user.username
@@ -286,7 +275,7 @@ def logout(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
-    user        = request.user
+    user         = request.user
     old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
     if not user.check_password(old_password):
@@ -305,7 +294,6 @@ def register(request):
     email     = request.data.get('email', '').strip().lower()
     password  = request.data.get('password', '')
     telephone = request.data.get('telephone', '')
-    # role = 'formateur' seulement si envoyé par un admin connecté
     role = request.data.get('role', 'etudiant')
     if role != 'etudiant' and not is_staff_or_admin(request.user):
         role = 'etudiant'
@@ -320,9 +308,6 @@ def register(request):
     while User.objects.filter(username=username).exists():
         username = f"{base}{i}"; i += 1
 
-    # Tous les comptes sont actifs dès la création.
-    # Pour les étudiants, c'est le STATUT DE L'INSCRIPTION qui contrôle l'accès aux cours.
-    # (is_active=False bloquerait la connexion JWT elle-même, ce qu'on ne veut pas)
     is_active    = True
     is_staff     = role in ['formateur', 'admin']
     is_superuser = role == 'admin'
@@ -344,7 +329,6 @@ def register(request):
         user=user, defaults={'telephone': telephone, 'role': role}
     )
 
-    # Inscription au niveau si fourni (apprenant public)
     niveau = request.data.get('niveau', '').upper()
     if niveau in ('A', 'B', 'C') and role == 'etudiant':
         Inscription.objects.get_or_create(
@@ -390,7 +374,6 @@ def google_callback(request):
     if error or not code:
         return redirect(f"{frontend_url}/login?error=google_denied")
 
-    # Échange code → tokens Google
     try:
         token_resp = requests.post(GOOGLE_TOKEN_URL, data={
             'code':          code,
@@ -407,7 +390,6 @@ def google_callback(request):
     if not google_access:
         return redirect(f"{frontend_url}/login?error=google_no_token")
 
-    # Récupère le profil Google
     try:
         info_resp = requests.get(
             GOOGLE_USERINFO_URL,
@@ -419,11 +401,11 @@ def google_callback(request):
     except Exception:
         return redirect(f"{frontend_url}/login?error=google_userinfo_failed")
 
-    g_email  = info.get('email', '').lower()
+    g_email   = info.get('email', '').lower()
     g_prenom  = info.get('given_name', '')
     g_nom     = info.get('family_name', '')
     g_picture = info.get('picture', '')
-    g_sub    = info.get('sub', '')
+    g_sub     = info.get('sub', '')
 
     if not g_email:
         return redirect(f"{frontend_url}/login?error=google_no_email")
@@ -441,13 +423,9 @@ def google_callback(request):
         user.set_unusable_password()
         user.save()
         Profil.objects.create(user=user, role='etudiant')
-        # ✅ Nouveau compte Google : pas d'inscription automatique créée ici.
-        # Le frontend détectera is_new_user=1 et redirigera vers la page
-        # de sélection de niveau pour que l'étudiant choisisse sa formation.
     else:
         if not user.is_active:
             return redirect(f"{frontend_url}/login?error=account_disabled")
-        # Synchronise prénom/nom depuis Google si vides
         updated = False
         if not user.first_name and g_prenom:
             user.first_name = g_prenom; updated = True
@@ -456,9 +434,6 @@ def google_callback(request):
         if updated:
             user.save(update_fields=['first_name', 'last_name'])
 
-    # Vérifie les droits réels en base (is_staff / is_superuser)
-    # Un admin créé via Django admin a is_superuser=True mais peut n'avoir
-    # jamais eu de Profil → on le crée si nécessaire avec le bon rôle
     role_reel = 'admin' if user.is_superuser else 'formateur' if user.is_staff else 'etudiant'
     profil, _ = Profil.objects.get_or_create(user=user, defaults={'role': role_reel})
     profil_updated = []
@@ -472,13 +447,11 @@ def google_callback(request):
     refresh = RefreshToken.for_user(user)
     role = 'admin' if user.is_superuser else 'formateur' if user.is_staff else 'etudiant'
 
-    # Pour les étudiants : liste des niveaux inscrits
     niveaux_inscrits = []
     if role == 'etudiant':
         inscriptions = Inscription.objects.filter(utilisateur=user).values('niveau', 'statut')
         niveaux_inscrits = list(inscriptions)
 
-    # Vérifier si l'utilisateur a déjà une inscription confirmée (pour s'inscrire à un autre cours)
     a_inscription_confirmee = False
     if role == 'etudiant':
         a_inscription_confirmee = Inscription.objects.filter(
@@ -490,14 +463,13 @@ def google_callback(request):
         photo_url = getattr(user.profil, 'photo_url', '') or ''
 
     params = urllib.parse.urlencode({
-        'access':                str(refresh.access_token),
-        'refresh':               str(refresh),
-        'role':                  role,
-        'niveaux_inscrits':      json.dumps(niveaux_inscrits),
-        'new_inscription':       '1' if a_inscription_confirmee else '0',
-        'photo_url':             photo_url,
-        # ✅ is_new_user=1 → le frontend doit rediriger vers la sélection de niveau
-        'is_new_user':           '1' if created else '0',
+        'access':           str(refresh.access_token),
+        'refresh':          str(refresh),
+        'role':             role,
+        'niveaux_inscrits': json.dumps(niveaux_inscrits),
+        'new_inscription':  '1' if a_inscription_confirmee else '0',
+        'photo_url':        photo_url,
+        'is_new_user':      '1' if created else '0',
     })
     return redirect(f"{frontend_url}/auth/google/success?{params}")
 
@@ -543,17 +515,6 @@ def user_detail(request, pk):
             return Response(status=403)
         user.delete()
         return Response(status=204)
-    
-
-  
-
-
-
-
-
-
-
-
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -570,7 +531,6 @@ def stats(request):
     nb_confirmes   = Inscription.objects.filter(statut='confirme').count()
     nb_certificats = Certificat.objects.count()
 
-    # Taux de réussite réel : % d'étudiants ayant au moins une note >= 50
     from django.db.models import Avg
     total_notes = Note.objects.count()
     if total_notes == 0:
@@ -638,7 +598,6 @@ def formation_lecons(request, pk):
     formation = get_object_or_404(Formation, pk=pk)
 
     if not request.user.is_staff and not request.user.is_superuser:
-        # Vérifier que l'utilisateur a une inscription CONFIRMÉE pour ce niveau
         insc = Inscription.objects.filter(
             utilisateur=request.user,
             niveau=formation.niveau,
@@ -658,8 +617,9 @@ def formation_lecons(request, pk):
     lecons = Lecon.objects.filter(formation=formation).order_by('ordre')
     return Response(LeconSerializer(lecons, many=True).data)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-#  LEÇONS (CRUD global)
+#  LEÇONS (CRUD global)                        ← BLOC CORRIGÉ
 # ══════════════════════════════════════════════════════════════════════════════
 
 @api_view(['GET', 'POST'])
@@ -673,8 +633,12 @@ def lecons_list(request):
         return Response(LeconSerializer(qs, many=True, context={'request': request}).data)
     if not is_staff_or_admin(request.user):
         return Response(status=403)
-    # ✅ Accepte multipart/form-data (avec fichier) ET JSON (sans fichier)
-    s = LeconSerializer(data=request.data, context={'request': request})
+    # ✅ Nettoyer : si fichier est une string vide ou 'null', le retirer
+    # pour éviter que DRF lève "Not a valid string" sur le FileField
+    data = request.data.copy()
+    if data.get('fichier') == '' or data.get('fichier') == 'null':
+        data.pop('fichier', None)
+    s = LeconSerializer(data=data, context={'request': request})
     if s.is_valid():
         s.save()
         return Response(s.data, status=201)
@@ -690,11 +654,18 @@ def lecon_detail(request, pk):
     if not is_staff_or_admin(request.user):
         return Response(status=403)
     if request.method == 'PUT':
-        # ✅ partial=True : on peut modifier sans renvoyer le fichier si inchangé
-        s = LeconSerializer(lecon, data=request.data, partial=True, context={'request': request})
+        data = request.data.copy()
+        supprimer_fichier = (data.get('fichier') == '')
+        if data.get('fichier') == '' or data.get('fichier') == 'null':
+            data.pop('fichier', None)
+        s = LeconSerializer(lecon, data=data, partial=True, context={'request': request})
         if s.is_valid():
-            s.save()
-            return Response(s.data)
+            instance = s.save()
+            # ✅ Suppression explicite demandée par le frontend (fichier='')
+            if supprimer_fichier:
+                instance.fichier = None
+                instance.save()
+            return Response(LeconSerializer(instance).data)
         return Response(s.errors, status=400)
     lecon.delete()
     return Response(status=204)
@@ -703,11 +674,6 @@ def lecon_detail(request, pk):
 # ══════════════════════════════════════════════════════════════════════════════
 #  INSCRIPTIONS
 # ══════════════════════════════════════════════════════════════════════════════
-
-
-
-
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -742,9 +708,6 @@ def inscriptions_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def mon_inscription(request):
-    """
-    Retourne la liste de toutes les inscriptions de l'apprenant connecté (une par niveau).
-    """
     inscriptions = (
         Inscription.objects
         .select_related('formation')
@@ -757,15 +720,9 @@ def mon_inscription(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def inscrire_niveau(request):
-    """
-    Inscrit l'apprenant connecté à une formation spécifique OU à un niveau général.
-    - Si formation_id fourni : unicité par (utilisateur, formation)
-    - Sinon : unicité par (utilisateur, niveau) pour inscription générale
-    """.strip()
     telephone    = request.data.get('telephone', '')
     formation_id = request.data.get('formation_id', None)
 
-    # Résoudre la formation en premier
     formation = None
     if formation_id:
         try:
@@ -773,7 +730,6 @@ def inscrire_niveau(request):
         except Formation.DoesNotExist:
             return Response({'error': 'Formation introuvable.'}, status=404)
 
-    # Niveau : depuis la formation si fournie, sinon depuis le payload
     if formation:
         niveau = formation.niveau
     else:
@@ -782,7 +738,6 @@ def inscrire_niveau(request):
     if niveau not in ('A', 'B', 'C'):
         return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
 
-    # Vérifier doublon selon le contexte
     if formation:
         existante = Inscription.objects.filter(utilisateur=request.user, formation=formation).first()
         doublon_msg = f'Vous êtes déjà inscrit(e) à cette formation ({formation.nom}).'
@@ -807,7 +762,6 @@ def inscrire_niveau(request):
     niveau_labels = {'A': 'Niveau A – Débutant', 'B': 'Niveau B – Intermédiaire', 'C': 'Niveau C – Avancé'}
     niveau_label = niveau_labels.get(niveau, f'Niveau {niveau}')
 
-    # Email de confirmation de réception
     try:
         _send_html_email(
             subject   = f'📋 Inscription Niveau {niveau} reçue – En attente de validation',
@@ -848,13 +802,11 @@ def inscription_confirmer(request, pk):
     niveau_labels = {'A': 'Niveau A – Débutant', 'B': 'Niveau B – Intermédiaire', 'C': 'Niveau C – Avancé'}
     niveau_label = niveau_labels.get(insc.niveau, f'Niveau {insc.niveau}')
 
-    # Lien de connexion directe (backend génère JWT et redirige)
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5181')
     backend_url  = getattr(settings, 'BACKEND_URL',  'http://localhost:8000')
     token = default_token_generator.make_token(user)
     uid   = urlsafe_base64_encode(force_bytes(user.pk))
 
-    # Utilisateur Google (pas de mot de passe local) → lien direct vers login Google
     if not user.has_usable_password():
         reset_link    = f"{frontend_url}/login"
         cta_label_txt = '🔑 Se connecter avec Google'
@@ -867,7 +819,6 @@ def inscription_confirmer(request, pk):
             "pour accéder directement à votre espace apprenant.</p></div>"
         )
     else:
-        # Utilisateur classique → lien auto-login via backend
         reset_link    = f"{backend_url}/api/auth/auto-login/?uid={uid}&token={token}"
         cta_label_txt = '🔓 Accéder à mon espace apprenant'
         cta_note      = (
@@ -879,7 +830,6 @@ def inscription_confirmer(request, pk):
             "à votre espace apprenant.</p></div>"
         )
 
-    # Liste des cours du niveau validé
     formations_niveau = Formation.objects.filter(niveau=insc.niveau).values_list('nom', flat=True)
     cours_html = ''.join(
         f"<li style='margin:4px 0;'>📘 {nom}</li>" for nom in formations_niveau
@@ -1021,7 +971,6 @@ def certificats_list(request):
     data = request.data.copy()
     if not data.get('numero'):
         data['numero'] = f"CERT-{uuid.uuid4().hex[:8].upper()}"
-    # formation est optionnelle : si absente ou vide, forcer null
     if not data.get('formation'):
         data['formation'] = None
     s = CertificatSerializer(data=data)
@@ -1138,9 +1087,7 @@ def session_detail(request, pk):
 def settings_view(request):
     p = Parametres.instance()
     if request.method == 'GET':
-        # GET public : la page d'accueil lit les paramètres sans token
         return Response(ParametresSerializer(p).data)
-    # PATCH réservé aux admins/staff uniquement
     if not request.user.is_authenticated or not is_staff_or_admin(request.user):
         return Response({'error': 'Permission refusée — réservé aux administrateurs.'}, status=403)
     s = ParametresSerializer(p, data=request.data, partial=True)
@@ -1167,7 +1114,6 @@ def admin_reset(request):
     """Réinitialisation des données de test (admin seulement)."""
     if not is_admin(request.user):
         return Response(status=403)
-    # Supprime données de test en gardant les comptes admin
     Inscription.objects.filter(statut='en_attente').delete()
     return Response({'message': 'Données réinitialisées.'})
 
@@ -1179,7 +1125,6 @@ def google_register_formation(request):
     telephone    = request.data.get('telephone', '')
     formation_id = request.data.get('formation_id', None)
 
-    # 1) Resolution de la formation
     formation = None
     if formation_id:
         try:
@@ -1187,8 +1132,6 @@ def google_register_formation(request):
         except Formation.DoesNotExist:
             return Response({'error': 'Formation introuvable.'}, status=404)
 
-    # 2) Resolution du niveau
-    # Si une formation est choisie, on prend son niveau ; sinon le champ 'niveau' du payload
     if formation:
         niveau = formation.niveau
     else:
@@ -1197,7 +1140,6 @@ def google_register_formation(request):
     if niveau not in ('A', 'B', 'C'):
         return Response({'error': 'Niveau invalide. Choisissez A, B ou C.'}, status=400)
 
-    # 3) Gestion des doublons
     if formation:
         existante   = Inscription.objects.filter(utilisateur=request.user, formation=formation).first()
         doublon_msg = f"Vous etes deja inscrit(e) a la formation {formation.nom}."
@@ -1216,7 +1158,6 @@ def google_register_formation(request):
         elif existante.statut == 'rejete':
             existante.delete()
 
-    # 4) Création de l'inscription
     insc = Inscription.objects.create(
         utilisateur=request.user,
         formation=formation,
@@ -1229,7 +1170,6 @@ def google_register_formation(request):
     niveau_label  = niveau_labels.get(niveau, f'Niveau {niveau}')
     nom_cours     = formation.nom if formation else niveau_label
 
-    # 5) Email de confirmation
     try:
         _send_html_email(
             subject   = f'📋 Inscription {nom_cours} reçue – En attente de validation',
@@ -1249,7 +1189,7 @@ def google_register_formation(request):
             ),
         )
     except Exception:
-        pass  # Ne pas bloquer l'inscription si l'email échoue
+        pass
 
     return Response({
         'message': f"Inscription à {nom_cours} enregistrée.",
