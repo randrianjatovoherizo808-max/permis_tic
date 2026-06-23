@@ -97,11 +97,11 @@
     </div>
 
     <!-- Modal rejet avec motif -->
-    <div v-if="showRejet" class="modal-overlay" @click.self="showRejet = false">
+    <div v-if="showRejet" class="modal-overlay" @click.self="annulerRejet">
       <div class="modal-box" style="max-width:420px">
         <div class="modal-head">
           <h3>❌ Rejeter l'inscription</h3>
-          <button @click="showRejet = false" class="close-btn">×</button>
+          <button @click="annulerRejet" class="close-btn">×</button>
         </div>
         <p style="font-size:13px;color:var(--gray);margin-bottom:16px">
           Rejet de <strong>{{ inscSelec?.utilisateur_nom }}</strong> pour
@@ -112,8 +112,10 @@
           <textarea v-model="motifRejet" rows="3" placeholder="Expliquer la raison du rejet…"></textarea>
         </div>
         <div class="actions" style="justify-content:flex-end">
-          <button class="btn btn-outline btn-sm" @click="showRejet = false">Annuler</button>
-          <button class="btn btn-danger" @click="rejeter">Confirmer le rejet</button>
+          <button class="btn btn-outline btn-sm" :disabled="rejetLoading" @click="annulerRejet">Annuler</button>
+          <button class="btn btn-danger" :disabled="rejetLoading" @click="rejeter">
+            {{ rejetLoading ? 'En cours…' : 'Confirmer le rejet' }}
+          </button>
         </div>
       </div>
     </div>
@@ -150,6 +152,7 @@ import { useToast } from '../../composables/useToast'
 const { showToast }   = useToast()
 const loading         = ref(true)
 const busy            = ref(null)
+const rejetLoading    = ref(false)
 const inscriptions    = ref([])
 const recherche       = ref('')
 const filtreStatut    = ref('en_attente')
@@ -159,12 +162,10 @@ const inscSelec       = ref(null)
 const motifRejet      = ref('')
 const detail          = ref(null)
 
-// Compteurs par statut
 const enAttente  = computed(() => inscriptions.value.filter(i => i.statut === 'en_attente'))
 const confirmees = computed(() => inscriptions.value.filter(i => i.statut === 'confirme'))
 const rejetees   = computed(() => inscriptions.value.filter(i => i.statut === 'rejete'))
 
-// Filtre local (recherche texte)
 const inscriptionsFiltrees = computed(() => {
   const q = recherche.value.toLowerCase()
   return inscriptions.value.filter((i) => {
@@ -205,23 +206,37 @@ async function confirmer(insc) {
 }
 
 function ouvrirRejet(insc) {
-  inscSelec.value = insc
+  inscSelec.value  = insc
   motifRejet.value = ''
-  showRejet.value = true
+  showRejet.value  = true
+}
+
+// ✅ Empêche la fermeture de la modal pendant que le rejet est en cours
+function annulerRejet() {
+  if (rejetLoading.value) return
+  showRejet.value = false
+  inscSelec.value = null
 }
 
 async function rejeter() {
+  if (!inscSelec.value || rejetLoading.value) return
+  rejetLoading.value = true
   busy.value = inscSelec.value.id
+  const inscId  = inscSelec.value.id
+  const inscNom = inscSelec.value.utilisateur_nom
   try {
-    await api.post(`/inscriptions/${inscSelec.value.id}/rejeter/`, {
+    await api.post(`/inscriptions/${inscId}/rejeter/`, {
       motif: motifRejet.value,
     })
-    showToast(`Inscription rejetée.`, 'info')
+    showToast('Inscription rejetée.', 'info')
+    // ✅ Fermer la modal APRÈS le succès de la requête
     showRejet.value = false
+    inscSelec.value = null
     await charger()
   } catch {
     showToast('Erreur lors du rejet.', 'error')
   } finally {
+    rejetLoading.value = false
     busy.value = null
   }
 }
