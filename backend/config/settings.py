@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'cloudinary_storage',  # ← ajouter
     'cloudinary',          # ← ajouter
-    'django.contrib.admin',
+    
 
     # ALLAUTH
     'allauth',
