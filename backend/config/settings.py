@@ -180,12 +180,18 @@ USE_I18N = True
 USE_TZ = True
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    'CORS_ALLOWED_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173,'
-    'http://localhost:5178,http://127.0.0.1:5178,'
-    'http://localhost:5181,http://127.0.0.1:5181'
-).split(',')
+# Origines toujours autorisées (production + dev)
+_CORS_ALWAYS = [
+    'https://permis-tic.vercel.app',
+    'http://localhost:5173', 'http://127.0.0.1:5173',
+    'http://localhost:5178', 'http://127.0.0.1:5178',
+    'http://localhost:5181', 'http://127.0.0.1:5181',
+]
+# Origines supplémentaires via variable d'environnement (optionnel)
+_CORS_EXTRA = [
+    o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()
+]
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_CORS_ALWAYS + _CORS_EXTRA))
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS[:]
 
 # ── DRF + JWT ──────────────────────────────────────────────────────────────────
