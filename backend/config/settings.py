@@ -55,6 +55,7 @@ LOGGING = {
 }
 
 _HOSTS_ALWAYS = [
+    'permis-tic-2.onrender.com',
     'permis-tic-api.onrender.com',
     '127.0.0.1',
     'localhost',
@@ -191,6 +192,7 @@ USE_TZ = True
 # Origines toujours autorisées (production + dev)
 _CORS_ALWAYS = [
     'https://permis-tic.vercel.app',
+    'https://permis-tic-2.onrender.com',
     'http://localhost:5173', 'http://127.0.0.1:5173',
     'http://localhost:5178', 'http://127.0.0.1:5178',
     'http://localhost:5181', 'http://127.0.0.1:5181',
