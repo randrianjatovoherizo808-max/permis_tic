@@ -50,7 +50,8 @@ from .views import (
     notifications,
     admin_reset,
 
-    google_register_formation
+    google_register_formation,
+    auto_login
 )
 
 urlpatterns = [
@@ -80,6 +81,7 @@ urlpatterns = [
     # ═══════════════════════════
     path('auth/google/', google_login_redirect),
     path('auth/google/callback/', google_callback),
+    path('auth/auto-login/', auto_login),
 
     path('google/register/formation/', google_register_formation),
 
