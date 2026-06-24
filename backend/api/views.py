@@ -354,14 +354,35 @@ def register(request):
         user=user, defaults={'telephone': telephone, 'role': role}
     )
 
-    # Inscription au niveau si fourni (apprenant public)
-    niveau = request.data.get('niveau', '').upper()
-    if niveau in ('A', 'B', 'C') and role == 'etudiant':
-        Inscription.objects.get_or_create(
-            utilisateur=user,
-            niveau=niveau,
-            defaults={'telephone': telephone, 'statut': 'en_attente'}
-        )
+    # Inscription à la formation choisie lors de l'inscription (apprenant public)
+    formation_id = request.data.get('formation', None)
+    niveau_brut  = request.data.get('niveau', '').upper()
+
+    if role == 'etudiant':
+        formation_obj = None
+        niveau_final  = None
+
+        if formation_id:
+            try:
+                formation_obj = Formation.objects.get(pk=formation_id)
+                niveau_final  = formation_obj.niveau
+            except Formation.DoesNotExist:
+                pass
+
+        if not formation_obj and niveau_brut in ('A', 'B', 'C'):
+            niveau_final = niveau_brut
+
+        if niveau_final:
+            from django.db import IntegrityError
+            try:
+                Inscription.objects.get_or_create(
+                    utilisateur=user,
+                    formation=formation_obj,
+                    niveau=niveau_final,
+                    defaults={'telephone': telephone, 'statut': 'en_attente'}
+                )
+            except IntegrityError:
+                pass  # Inscription déjà existante, on ignore
 
     return Response({'message': 'Compte créé avec succès.'}, status=201)
 
@@ -806,13 +827,20 @@ def inscrire_niveau(request):
         elif existante.statut == 'rejete':
             existante.delete()
 
-    insc = Inscription.objects.create(
-        utilisateur=request.user,
-        formation=formation,
-        niveau=niveau,
-        telephone=telephone,
-        statut='en_attente'
-    )
+    from django.db import IntegrityError
+    try:
+        insc = Inscription.objects.create(
+            utilisateur=request.user,
+            formation=formation,
+            niveau=niveau,
+            telephone=telephone,
+            statut='en_attente'
+        )
+    except IntegrityError:
+        return Response(
+            {'error': 'Vous êtes déjà inscrit(e) à cette formation ou ce niveau.'},
+            status=400
+        )
 
     niveau_labels = {'A': 'Niveau A – Débutant', 'B': 'Niveau B – Intermédiaire', 'C': 'Niveau C – Avancé'}
     niveau_label = niveau_labels.get(niveau, f'Niveau {niveau}')
