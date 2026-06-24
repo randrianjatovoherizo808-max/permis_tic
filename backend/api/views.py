@@ -554,26 +554,41 @@ def users_list(request):
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def user_detail(request, pk):
-    user = get_object_or_404(User, pk=pk)
-    if request.method == 'GET':
-        return Response(UserSerializer(user).data)
-    if request.method == 'PATCH':
-        if not is_staff_or_admin(request.user):
-            return Response(status=403)
-        for field, value in request.data.items():
-            if field == 'is_active':
-                user.is_active = value
-            elif field == 'first_name':
-                user.first_name = value
-            elif field == 'last_name':
-                user.last_name = value
-        user.save()
-        return Response(UserSerializer(user).data)
-    if request.method == 'DELETE':
-        if not is_admin(request.user):
-            return Response(status=403)
-        user.delete()
-        return Response(status=204)
+    try:
+        user = get_object_or_404(User, pk=pk)
+
+        # S'assurer que le Profil existe (evite crash sur profil manquant)
+        Profil.objects.get_or_create(user=user, defaults={'role': (
+            'admin' if user.is_superuser else 'formateur' if user.is_staff else 'etudiant'
+        )})
+
+        if request.method == 'GET':
+            return Response(UserSerializer(user).data)
+
+        if request.method == 'PATCH':
+            if not is_staff_or_admin(request.user):
+                return Response(status=403)
+            for field, value in request.data.items():
+                if field == 'is_active':
+                    user.is_active = bool(value)
+                elif field == 'first_name':
+                    user.first_name = value
+                elif field == 'last_name':
+                    user.last_name = value
+                elif field == 'email':
+                    user.email = value
+            user.save()
+            return Response(UserSerializer(user).data)
+
+        if request.method == 'DELETE':
+            if not is_admin(request.user):
+                return Response(status=403)
+            user.delete()
+            return Response(status=204)
+
+    except Exception as e:
+        logging.error(f"user_detail error pk={pk}: {e}", exc_info=True)
+        return Response({'error': 'Une erreur est survenue.'}, status=500)
     
 
   
