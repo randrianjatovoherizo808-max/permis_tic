@@ -54,7 +54,15 @@ LOGGING = {
     },
 }
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+_HOSTS_ALWAYS = [
+    'permis-tic-api.onrender.com',
+    '127.0.0.1',
+    'localhost',
+]
+_HOSTS_EXTRA = [
+    h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()
+]
+ALLOWED_HOSTS = list(dict.fromkeys(_HOSTS_ALWAYS + _HOSTS_EXTRA))
 
 
 # Application definition
