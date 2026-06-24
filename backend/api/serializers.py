@@ -61,6 +61,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         role      = validated_data.pop('role', 'etudiant')
         email     = validated_data['email'].lower()
 
+        # username unique dérivé de l'email
         base = email.split('@')[0]
         username, i = base, 1
         while User.objects.filter(username=username).exists():
@@ -115,16 +116,13 @@ from cloudinary.models import CloudinaryField
 
 class LeconSerializer(serializers.ModelSerializer):
     formation_nom = serializers.CharField(source='formation.nom', read_only=True)
-    # FileField explicite : required=False + allow_null=True pour accepter
-    # absence de fichier sans lever "Not a valid string"
-    fichier = serializers.FileField(required=False, allow_null=True, allow_empty_file=True)
 
     class Meta:
         model  = Lecon
         fields = ['id', 'formation', 'formation_nom', 'titre', 'contenu', 'ordre', 'ressources', 'fichier']
 
     def _upload_fichier(self, fichier):
-        """Upload vers Cloudinary avec extension explicite (.docx, .pptx sont des ZIP — format requis)."""
+        """Upload vers Cloudinary en précisant l'extension pour les fichiers ZIP-based (.docx, .pptx…)."""
         ext = os.path.splitext(getattr(fichier, 'name', ''))[1].lstrip('.').lower() or None
         upload_kwargs = dict(
             resource_type='raw',
@@ -150,9 +148,11 @@ class LeconSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        # fichier=None ici signifie "non fourni" (pas de changement)
-        # La suppression explicite est gérée dans la vue (lecon_detail)
-        if fichier:
+        if fichier == '':
+            # Suppression explicite du fichier existant
+            instance.fichier = None
+            instance.save()
+        elif fichier:
             instance.fichier = self._upload_fichier(fichier)
             instance.save()
         return instance
@@ -272,6 +272,7 @@ class ParametresSerializer(serializers.ModelSerializer):
             'whatsapp', 'whatsapp_nom',
             'slogan', 'description',
             'facebook', 'footer_texte',
+            # Niveaux A / B / C
             'niveau_a_titre', 'niveau_a_sous', 'niveau_a_desc', 'niveau_a_items',
             'niveau_b_titre', 'niveau_b_sous', 'niveau_b_desc', 'niveau_b_items',
             'niveau_c_titre', 'niveau_c_sous', 'niveau_c_desc', 'niveau_c_items',
