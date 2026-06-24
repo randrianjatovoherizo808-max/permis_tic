@@ -87,9 +87,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
-     'rest_framework'
-
-    # API
+     'rest_framework',
     'backend.api',
 
     # IMPORTANT si tu utilises CORS
