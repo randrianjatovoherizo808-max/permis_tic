@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToast } from '../composables/useToast'
 
 // ── Import des vues ──────────────────────────────────────────────────────────
 // Pages publiques
@@ -260,6 +261,22 @@ router.beforeEach(async (to, _from, next) => {
 
     if (!allowedRoles.includes(role)) {
       return next(roleRedirect(role))
+    }
+  }
+
+  // 🚫 BLOCAGE APPRENANT — accès interdit tant qu'aucune inscription n'est confirmée
+  if (to.name === 'espace-apprenant' && auth.user?.role === 'etudiant') {
+    const inscriptions = auth.user?.inscriptions || []
+    const aConfirme = inscriptions.some(i => i.statut === 'confirme')
+    if (!aConfirme) {
+      const { showToast } = useToast()
+      const aRefus = inscriptions.some(i => i.statut === 'rejete')
+      if (aRefus) {
+        showToast('❌ Votre inscription a été refusée. Veuillez contacter l\'administration.', 'error', 6000)
+      } else {
+        showToast('⏳ Votre compte est en attente de validation par l\'administrateur. Vous recevrez un email dès que votre accès sera activé.', 'warning', 6000)
+      }
+      return next({ name: 'home' })
     }
   }
 
