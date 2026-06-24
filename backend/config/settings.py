@@ -228,7 +228,7 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.environ.get(
     'GOOGLE_REDIRECT_URI',
-    'https://permis-tic-api.onrender.com/api/auth/google/callback/'
+    'https://permis-tic-2.onrender.com/api/auth/google/callback/'
 )
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://permis-tic.vercel.app')
