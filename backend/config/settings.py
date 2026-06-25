@@ -232,6 +232,7 @@ GOOGLE_REDIRECT_URI = os.environ.get(
 )
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://permis-tic.vercel.app')
+BACKEND_URL = os.environ.get('BACKEND_URL', 'https://permis-tic-2.onrender.com')
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
