@@ -879,8 +879,8 @@ def inscrire_niveau(request):
                 f"<p style='font-size:13px;color:#888;'>Merci de votre patience.</p>"
             ),
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.error(f"EMAIL ERROR: {e}")
 
     return Response({'message': f'Inscription au {niveau_label} enregistrée.', 'statut': insc.statut}, status=201)
 
@@ -954,8 +954,8 @@ def inscription_confirmer(request, pk):
             cta_link  = reset_link,
             cta_label = cta_label_txt,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.error(f"EMAIL ERROR: {e}")
 
     return Response(InscriptionSerializer(insc).data)
 
