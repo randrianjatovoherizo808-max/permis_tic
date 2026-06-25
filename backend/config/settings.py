@@ -92,6 +92,7 @@ INSTALLED_APPS = [
 
     # IMPORTANT si tu utilises CORS
     'corsheaders',
+    'anymail'
 ]
 
 MIDDLEWARE = [
@@ -301,3 +302,6 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER or 'noreply@permistic.mg'
 # ✅ Timeout SMTP global : évite de bloquer le worker Gunicorn si Gmail est lent
 EMAIL_TIMEOUT       = 15
+ANYMAIL = {
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY", ""),
+}
