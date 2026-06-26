@@ -291,31 +291,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 Mo
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ── Email ─────────────────────────────────────────────────────────────────────
-# Logique automatique :
-#   - Si RESEND_API_KEY est défini (prod Render) → Anymail / Resend
-#   - Sinon si EMAIL_BACKEND=smtp dans .env (dev local) → Gmail SMTP
-#   - Sinon → console (logs)
-
-_resend_key = os.environ.get("RESEND_API_KEY", "")
-
-if _resend_key:
-    # ✅ Production : Resend via Anymail
-    # onboarding@resend.dev est l'adresse test autorisée sans domaine vérifié
-    EMAIL_BACKEND      = 'anymail.backends.resend.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'onboarding@resend.dev'
-else:
-    # Dev / fallback
-    EMAIL_BACKEND       = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-    EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-    EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', '587'))
-    EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-    EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL  = os.environ.get('EMAIL_HOST_USER', 'noreply@permistic.mg')
-
-# ✅ Timeout global email
-EMAIL_TIMEOUT = 15
-
-ANYMAIL = {
-    "RESEND_API_KEY": _resend_key,
-}
+EMAIL_BACKEND       = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL  = os.environ.get('EMAIL_HOST_USER', 'noreply@permistic.mg')
+EMAIL_TIMEOUT       = 15
