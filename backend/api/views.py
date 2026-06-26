@@ -84,7 +84,9 @@ def _send_html_email(subject, to_email, preheader, body_html, cta_link=None, cta
 </body></html>"""
 
     text = f"{preheader}\n\n{subject}\n\nLien : {cta_link or ''}"
-    from_email = settings.EMAIL_HOST_USER or settings.DEFAULT_FROM_EMAIL or 'noreply@permistic.mg'
+    # ✅ Toujours utiliser DEFAULT_FROM_EMAIL (onboarding@resend.dev pour Resend)
+    # Ne jamais utiliser EMAIL_HOST_USER (gmail.com) avec Resend → erreur 403
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
     msg = EmailMultiAlternatives(subject, text, from_email, [to_email])
     msg.attach_alternative(html, "text/html")
 
@@ -150,23 +152,33 @@ def forgot_password(request):
     code = f"{random.randint(0, 999999):06d}"
     OtpCode.objects.create(user=user, code=code)
 
-    _send_html_email(
-        subject   = '🔐 Votre code de vérification – Permis TIC',
-        to_email  = email,
-        preheader = f'Votre code de réinitialisation : {code}',
-        body_html = (
-            f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
-            f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
-            f"<p>Voici votre code de vérification à 6 chiffres :</p>"
-            f"<div style='text-align:center;margin:28px 0;'>"
-            f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
-            f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
-            f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
-            f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
-            f"border-radius:6px;font-size:13px;color:#555;'>"
-            f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
-        ),
-    )
+    try:
+        _send_html_email(
+            subject   = '🔐 Votre code de vérification – Permis TIC',
+            to_email  = email,
+            preheader = f'Votre code de réinitialisation : {code}',
+            body_html = (
+                f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
+                f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
+                f"<p>Voici votre code de vérification à 6 chiffres :</p>"
+                f"<div style='text-align:center;margin:28px 0;'>"
+                f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
+                f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
+                f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
+                f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
+                f"border-radius:6px;font-size:13px;color:#555;'>"
+                f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
+            ),
+        )
+    except Exception as e:
+        # Log l'erreur mais ne pas exposer les détails techniques à l'utilisateur
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur envoi email OTP à {email}: {e}")
+        return Response(
+            {'error': "Impossible d'envoyer l'email. Vérifiez votre adresse ou réessayez plus tard."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
     return Response({'message': 'Code envoyé'})
     
 @api_view(['POST'])
