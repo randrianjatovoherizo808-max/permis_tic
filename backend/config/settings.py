@@ -92,7 +92,6 @@ INSTALLED_APPS = [
 
     # IMPORTANT si tu utilises CORS
     'corsheaders',
-    'anymail'
 ]
 
 MIDDLEWARE = [
