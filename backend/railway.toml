@@ -3,3 +3,6 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "gunicorn config.wsgi:application --timeout 120 --workers 2"
+
+[build.environment]
+DJANGO_SETTINGS_MODULE = "config.settings"
