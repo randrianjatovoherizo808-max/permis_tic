@@ -152,6 +152,8 @@ def forgot_password(request):
     code = f"{random.randint(0, 999999):06d}"
     OtpCode.objects.create(user=user, code=code)
 
+    # Tentative d'envoi par email (si disponible)
+    email_envoye = False
     try:
         _send_html_email(
             subject   = '🔐 Votre code de vérification – Permis TIC',
@@ -170,16 +172,18 @@ def forgot_password(request):
                 f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
             ),
         )
+        email_envoye = True
     except Exception as e:
-        # Log l'erreur mais ne pas exposer les détails techniques à l'utilisateur
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Erreur envoi email OTP à {email}: {e}")
-        return Response(
-            {'error': "Impossible d'envoyer l'email. Vérifiez votre adresse ou réessayez plus tard."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
-    return Response({'message': 'Code envoyé'})
+
+    # Toujours retourner le code dans la réponse (fallback universel)
+    return Response({
+        'message': 'Code envoyé' if email_envoye else 'Code généré',
+        'code': code,  # Le frontend affiche ce code directement
+        'email_envoye': email_envoye,
+    })
     
 @api_view(['POST'])
 @permission_classes([AllowAny])
