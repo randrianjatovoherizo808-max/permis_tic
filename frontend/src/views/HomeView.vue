@@ -692,29 +692,18 @@ onUnmounted(() => {
   .stat-item { padding: 16px 24px; }
 }
 @media (max-width: 600px) {
-  .topbar-left { display: none; }
-  .burger { display: block; }
-  .main-nav { display: none; padding: 0; }
-  .main-nav.open { display: block; }
-  .nav-inner { flex-direction: column; gap: 0; }
-  .nav-link { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,.1); border-right: none; }
-  .header-inner { grid-template-columns: auto 1fr auto; gap: 8px; }
-  .header-center { display: none; }
-  .wa-display { display: none; }
+  /* Pas de menu burger - navigation complète visible comme sur PC */
+  .burger { display: none !important; }
+  .main-nav { display: block !important; }
+  .nav-inner { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .nav-link { padding: 8px 12px; font-size: 12px; }
   .stats-band { display: grid; grid-template-columns: 1fr 1fr; }
   .stat-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,.1); padding: 14px 20px; }
   .footer-links { flex-direction: column; gap: 8px; }
   .hero { padding: 40px 16px 60px; }
-  .hero-title { font-size: clamp(1.8rem, 8vw, 2.5rem); }
-  .hero-sub { font-size: 0.95rem; }
-  .btn-cta { padding: 14px 28px; font-size: 0.95rem; }
   .niveau-cards-grid { grid-template-columns: 1fr; max-width: 100%; }
   .nv-card { padding: 24px 20px; }
   .cta-inner { padding: 32px 16px; }
-  .logo-badge { display: none; }
-  .header-actions { gap: 8px; }
-  .topbar-btn-connexion { padding: 6px 12px; font-size: 12px; }
-  .btn-inscription { padding: 8px 14px; font-size: 12px; }
 }
 
 /* ══════════════════════════════════════════════════════════
