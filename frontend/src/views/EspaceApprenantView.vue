@@ -21,6 +21,12 @@
       </div>
     </header>
 
+    <!-- ══ BANNIÈRE STATUT ══ -->
+    <div v-if="banniereStatut" :class="['banniere-statut', banniereStatut.type]">
+      <span>{{ banniereStatut.message }}</span>
+      <button @click="banniereStatut = null" class="banniere-close">✕</button>
+    </div>
+
     <div class="appr-body">
 
       <!-- CHARGEMENT -->
@@ -332,6 +338,24 @@ const initiales = computed(() => {
 })
 
 const inscriptionsConfirmees = computed(() => inscriptions.value.filter(i => i.statut === 'confirme'))
+
+// ══ Bannière statut ══
+const banniereStatut = ref(null)
+
+function afficherBanniereStatut() {
+  const statuts = inscriptions.value.map(i => i.statut)
+  const precedent = localStorage.getItem('dernierStatut')
+  const actuel = JSON.stringify(statuts)
+
+  if (precedent && precedent !== actuel) {
+    if (statuts.includes('confirme') && !JSON.parse(precedent).includes('confirme')) {
+      banniereStatut.value = { type: 'success', message: '✅ Félicitations ! Votre inscription a été confirmée par l'administrateur !' }
+    } else if (statuts.includes('rejete') && !JSON.parse(precedent).includes('rejete')) {
+      banniereStatut.value = { type: 'error', message: '❌ Votre inscription a été rejetée. Contactez l'administrateur pour plus d'informations.' }
+    }
+  }
+  localStorage.setItem('dernierStatut', actuel)
+}
 const inscriptionsAttente    = computed(() => inscriptions.value.filter(i => i.statut === 'en_attente'))
 
 const toutesFormationsConfirmees = computed(() => {
@@ -408,6 +432,7 @@ async function charger() {
     // 1. Inscriptions
     const { data: inscData } = await api.get('/inscriptions/mon-inscription/')
     inscriptions.value = Array.isArray(inscData) ? inscData : (inscData ? [inscData] : [])
+    afficherBanniereStatut()  // Afficher bannière si statut a changé
 
     // 2. Toutes les formations (pour affichage par niveau + liste inscription)
     const { data: formationsData } = await api.get('/formations/')
@@ -639,6 +664,19 @@ function telechargerCertificat() {
     html, body { width: 297mm; height: 210mm; }
     .page { page-break-after: avoid; }
   }
+.banniere-statut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  animation: slideDown 0.3s ease;
+}
+.banniere-statut.success { background: #e8f5e9; color: #2e7d32; border-bottom: 3px solid #4CAF50; }
+.banniere-statut.error { background: #ffebee; color: #c62828; border-bottom: 3px solid #f44336; }
+.banniere-close { background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head><body>
 <div class="page">
