@@ -88,7 +88,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
 
      'rest_framework',
-    'backend.api',
+    'api',
 
     # IMPORTANT si tu utilises CORS
     'corsheaders',
@@ -110,7 +110,7 @@ MIDDLEWARE = [
 ]
 
 
-SOCIALACCOUNT_ADAPTER = 'backend.api.adapters.GoogleAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'api.adapters.GoogleAccountAdapter'
 
 SITE_ID = 1
 
@@ -123,7 +123,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
-ROOT_URLCONF = 'backend.config.urls'
+ROOT_URLCONF = 'config.urls'
 
 
 TEMPLATES = [
@@ -141,7 +141,7 @@ TEMPLATES = [
         },
     },
 ]
-WSGI_APPLICATION = 'backend.config.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
