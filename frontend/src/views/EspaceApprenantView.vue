@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="apprenant-page">
     <!-- Header -->
     <header class="appr-header">
@@ -349,9 +349,9 @@ function afficherBanniereStatut() {
 
   if (precedent && precedent !== actuel) {
     if (statuts.includes('confirme') && !JSON.parse(precedent).includes('confirme')) {
-      banniereStatut.value = { type: 'success', message: '✅ Félicitations ! Votre inscription a été confirmée par l'administrateur !' }
+      banniereStatut.value = { type: 'success', message: '✅ Félicitations ! Votre inscription a été confirmée par l administrateur !' }
     } else if (statuts.includes('rejete') && !JSON.parse(precedent).includes('rejete')) {
-      banniereStatut.value = { type: 'error', message: '❌ Votre inscription a été rejetée. Contactez l'administrateur pour plus d'informations.' }
+      banniereStatut.value = { type: 'error', message: '❌ Votre inscription a été rejetée. Contactez l administrateur pour plus d informations.' }
     }
   }
   localStorage.setItem('dernierStatut', actuel)
