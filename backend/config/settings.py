@@ -88,8 +88,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
 
      'rest_framework',
-    # Auto-détection : Railway utilise 'backend.api', Render utilise 'backend.api'
-    'backend.api' if os.environ.get('DJANGO_SETTINGS_MODULE') == 'config.settings' else 'backend.api',
+    'backend.api',
 
     # IMPORTANT si tu utilises CORS
     'corsheaders',
@@ -111,11 +110,7 @@ MIDDLEWARE = [
 ]
 
 
-SOCIALACCOUNT_ADAPTER = (
-    'api.adapters.GoogleAccountAdapter'
-    if os.environ.get('DJANGO_SETTINGS_MODULE') == 'config.settings'
-    else 'backend.api.adapters.GoogleAccountAdapter'
-)
+SOCIALACCOUNT_ADAPTER = 'backend.api.adapters.GoogleAccountAdapter'
 
 SITE_ID = 1
 
