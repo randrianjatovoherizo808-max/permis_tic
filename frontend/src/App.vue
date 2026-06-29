@@ -14,11 +14,11 @@
           </div>
           <span class="splash-badge-c">C</span>
         </div>
-        <div class="splash-ring"></div>
       </div>
-      <div class="splash-subtitle">Chargement en cours…</div>
       <div class="splash-dots">
-        <span></span><span></span><span></span>
+        <span class="dot dot-1"></span>
+        <span class="dot dot-2"></span>
+        <span class="dot dot-3"></span>
       </div>
     </div>
   </Transition>
@@ -56,7 +56,7 @@ onMounted(async () => {
   }
 
   // Minimum 800ms pour éviter le flash, puis disparaît dès que le DOM est prêt
-  await new Promise(r => setTimeout(r, 2500))
+  await new Promise(r => setTimeout(r, 5000))
   showSplash.value = false
 })
 </script>
@@ -138,15 +138,7 @@ body {
   animation: logoPulse 1.8s ease-in-out infinite;
 }
 
-.splash-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  border: 3px solid rgba(76,175,80,0.15);
-  border-top-color: #4CAF50;
-  border-right-color: #8BC34A;
-  animation: spinRing 1s linear infinite;
-}
+/* splash-ring supprimé */
 
 .splash-title {
   font-size: 1.4rem;
@@ -160,22 +152,22 @@ body {
   color: #888;
 }
 
-/* Points animés */
+/* Points animés 3 points vert/jaune */
 .splash-dots {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 14px;
+  margin-top: 20px;
 }
-.splash-dots span {
-  width: 8px; height: 8px;
+.dot {
+  width: 16px; height: 16px;
   border-radius: 50%;
-  background: #4CAF50;
-  animation: dotBounce 1.2s ease-in-out infinite;
+  animation: dotBounce 0.8s ease-in-out infinite;
 }
-.splash-dots span:nth-child(2) { animation-delay: 0.2s; background: #8BC34A; }
-.splash-dots span:nth-child(3) { animation-delay: 0.4s; background: #CDDC39; }
+.dot-1 { background: #4CAF50; animation-delay: 0s; }
+.dot-2 { background: #F9C514; animation-delay: 0.2s; }
+.dot-3 { background: #4CAF50; animation-delay: 0.4s; }
 
-@keyframes spinRing   { to { transform: rotate(360deg); } }
+
 @keyframes logoPulse  {
   0%,100% { transform: scale(1);    box-shadow: 0 4px 20px rgba(76,175,80,0.2); }
   50%     { transform: scale(1.05); box-shadow: 0 6px 28px rgba(76,175,80,0.35); }
