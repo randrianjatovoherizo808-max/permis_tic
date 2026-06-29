@@ -2,19 +2,6 @@
   <!-- ── Écran de chargement léger ── -->
   <Transition name="splash">
     <div v-if="showSplash" class="splash-screen">
-      <div class="splash-logo-wrap">
-        <div class="splash-badge">
-          <span class="splash-badge-p">P</span>
-          <div class="splash-badge-main">
-            <div class="splash-badge-top">
-              <span class="splash-badge-if">IF</span>
-              <span class="splash-badge-tic">TI</span>
-            </div>
-            <div class="splash-badge-bottom">CNFPPSH</div>
-          </div>
-          <span class="splash-badge-c">C</span>
-        </div>
-      </div>
       <div class="splash-dots">
         <span class="dot dot-1"></span>
         <span class="dot dot-2"></span>
