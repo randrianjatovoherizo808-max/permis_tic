@@ -10,7 +10,7 @@
               <span class="splash-badge-if">IF</span>
               <span class="splash-badge-tic">TI</span>
             </div>
-            <div class="splash-badge-bottom">CNFPPS</div>
+            <div class="splash-badge-bottom">CNFPPSH</div>
           </div>
           <span class="splash-badge-c">C</span>
         </div>
