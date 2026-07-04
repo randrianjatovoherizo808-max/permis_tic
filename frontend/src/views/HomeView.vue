@@ -414,13 +414,20 @@ function niveauIcon(niveau) {
   return { A: '💻', B: '🎨', C: '🚀' }[niveau] || '📘'
 }
 
+function _etudiantRoute() {
+  // Vérifie si l'étudiant a une inscription confirmée
+  const inscriptions = auth.user?.inscriptions || []
+  const aConfirme = inscriptions.some(i => i.statut === 'confirme')
+  return aConfirme ? '/espace-apprenant' : '/auth/google/success'
+}
+
 function goApprenant() {
-  if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
+  if (auth.user?.role === 'etudiant') router.push(_etudiantRoute())
   else router.push('/login')
 }
 function goLogin() {
   if (auth.isAuthenticated) {
-    if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
+    if (auth.user?.role === 'etudiant') router.push(_etudiantRoute())
     else router.push('/admin')
   } else {
     router.push('/login')
