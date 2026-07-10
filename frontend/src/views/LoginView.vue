@@ -153,19 +153,19 @@ async function handleLogin() {
     const role = auth.user?.role
 
     if (role === 'etudiant') {
-      // Vérifier si l'inscription est confirmée avant d'accéder à l'espace apprenant
+      // Vérifier le statut d'inscription avant de rediriger
       const inscriptions = auth.user?.inscriptions || []
-      const aConfirme = inscriptions.some(i => i.statut === 'confirme')
-      const aInscription = inscriptions.length > 0
+      const aConfirme    = inscriptions.some(i => i.statut === 'confirme')
+      const aEnAttente   = inscriptions.some(i => i.statut === 'en_attente')
 
       if (aConfirme) {
-        // Inscription validée → espace apprenant
+        // Inscription validée → espace apprenant directement
         router.push('/espace-apprenant')
-      } else if (aInscription) {
-        // Inscription en attente ou rejetée → page d'attente Google
+      } else if (aEnAttente) {
+        // En attente de validation → page d'attente
         router.push('/auth/google/success')
       } else {
-        // Pas encore inscrit → page d'attente pour choisir formation
+        // Pas encore inscrit → choisir une formation
         router.push('/auth/google/success')
       }
     } else if (role === 'admin') {

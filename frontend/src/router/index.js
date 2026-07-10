@@ -269,14 +269,8 @@ router.beforeEach(async (to, _from, next) => {
     const inscriptions = auth.user?.inscriptions || []
     const aConfirme = inscriptions.some(i => i.statut === 'confirme')
     if (!aConfirme) {
-      const { showToast } = useToast()
-      const aRefus = inscriptions.some(i => i.statut === 'rejete')
-      if (aRefus) {
-        showToast('❌ Votre inscription a été refusée. Veuillez contacter l\'administration.', 'error', 6000)
-      } else {
-        showToast('⏳ Votre compte est en attente de validation par l\'administrateur. Vous recevrez un email dès que votre accès sera activé.', 'warning', 6000)
-      }
-      return next({ name: 'home' })
+      // Rediriger vers la page d'attente/inscription, pas vers home
+      return next({ path: '/auth/google/success' })
     }
   }
 
