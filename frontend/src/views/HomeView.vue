@@ -418,13 +418,8 @@ function goApprenant() {
   if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
   else router.push('/login')
 }
-function goLogin() { router.push("/login"); return
-  if (auth.isAuthenticated) {
-    if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
-    else router.push('/admin')
-  } else {
-    router.push('/login')
-  }
+function goLogin() {
+  router.push('/login')
 }
 
 async function charger() {
