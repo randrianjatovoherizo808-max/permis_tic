@@ -362,3 +362,4 @@ onMounted(charger)
   .tab { font-size: 0.72rem; padding: 12px 4px; }
 }
 </style>
+ 
