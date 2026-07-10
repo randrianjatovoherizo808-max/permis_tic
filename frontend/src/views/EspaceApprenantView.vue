@@ -21,12 +21,6 @@
       </div>
     </header>
 
-    <!-- ══ BANNIÈRE STATUT ══ -->
-    <div v-if="banniereStatut" :class="['banniere-statut', banniereStatut.type]">
-      <span>{{ banniereStatut.message }}</span>
-      <button @click="banniereStatut = null" class="banniere-close">✕</button>
-    </div>
-
     <div class="appr-body">
 
       <!-- CHARGEMENT -->
@@ -257,8 +251,8 @@
                 <p class="badge badge--success" style="font-size:0.95rem;padding:10px 20px;">
                   🏅 Admis(e) — Moyenne : {{ moyenneGlobale }}/20
                 </p>
-                <button class="btn btn-primary" style="margin-top:16px;" @click="telechargerCertificat">
-                  ⬇️ Télécharger le certificat (PDF)
+                <button class="btn btn-primary" style="margin-top:16px;" @click="visualiserCertificat">
+                  👁️ Visualiser mon certificat
                 </button>
               </div>
               <div v-else-if="moyenneGlobale" class="badge badge--danger" style="font-size:0.9rem;padding:8px 16px;">
@@ -270,6 +264,23 @@
 
         </template>
       </template>
+    </div>
+  </div>
+
+  <!-- ══ MODAL PRÉVISUALISATION CERTIFICAT ══ -->
+  <div v-if="showCertifModal" class="certif-modal-overlay" @click.self="showCertifModal = false">
+    <div class="certif-modal">
+      <div class="certif-modal-header">
+        <h3>🎓 Certificat de formation</h3>
+        <button class="certif-close-btn" @click="showCertifModal = false">✕</button>
+      </div>
+      <div class="certif-modal-body">
+        <iframe :srcdoc="certifHtml" class="certif-iframe" frameborder="0"></iframe>
+      </div>
+      <div class="certif-modal-footer">
+        <p class="certif-notice">🔒 Le téléchargement est réservé à l'administrateur.</p>
+        <button class="btn btn-secondary" @click="showCertifModal = false">Fermer</button>
+      </div>
     </div>
   </div>
 </template>
@@ -338,24 +349,6 @@ const initiales = computed(() => {
 })
 
 const inscriptionsConfirmees = computed(() => inscriptions.value.filter(i => i.statut === 'confirme'))
-
-// ══ Bannière statut ══
-const banniereStatut = ref(null)
-
-function afficherBanniereStatut() {
-  const statuts = inscriptions.value.map(i => i.statut)
-  const precedent = localStorage.getItem('dernierStatut')
-  const actuel = JSON.stringify(statuts)
-
-  if (precedent && precedent !== actuel) {
-    if (statuts.includes('confirme') && !JSON.parse(precedent).includes('confirme')) {
-      banniereStatut.value = { type: 'success', message: '✅ Félicitations ! Votre inscription a été confirmée par l administrateur !' }
-    } else if (statuts.includes('rejete') && !JSON.parse(precedent).includes('rejete')) {
-      banniereStatut.value = { type: 'error', message: '❌ Votre inscription a été rejetée. Contactez l administrateur pour plus d informations.' }
-    }
-  }
-  localStorage.setItem('dernierStatut', actuel)
-}
 const inscriptionsAttente    = computed(() => inscriptions.value.filter(i => i.statut === 'en_attente'))
 
 const toutesFormationsConfirmees = computed(() => {
@@ -432,7 +425,6 @@ async function charger() {
     // 1. Inscriptions
     const { data: inscData } = await api.get('/inscriptions/mon-inscription/')
     inscriptions.value = Array.isArray(inscData) ? inscData : (inscData ? [inscData] : [])
-    afficherBanniereStatut()  // Afficher bannière si statut a changé
 
     // 2. Toutes les formations (pour affichage par niveau + liste inscription)
     const { data: formationsData } = await api.get('/formations/')
@@ -500,35 +492,40 @@ async function reinscrire(niveau) {
   await soumettreInscription()
 }
 
-function telechargerCertificat() {
-  const u       = auth.user
-  const prenom  = u?.prenom || u?.first_name || ''
-  const nomFam  = (u?.nom || u?.last_name || '').toUpperCase()
+// ── Prévisualisation certificat (apprenant) ──
+const showCertifModal = ref(false)
+const certifHtml      = ref('')
+
+function visualiserCertificat() {
+  certifHtml.value  = _buildCertifHtml()
+  showCertifModal.value = true
+}
+
+function _buildCertifHtml() {
+  const u          = auth.user
+  const prenom     = u?.prenom || u?.first_name || ''
+  const nomFam     = (u?.nom || u?.last_name || '').toUpperCase()
   const nomComplet = `${nomFam} ${prenom}`.trim()
-
-  // Infos inscriptions confirmées
-  const insc    = inscriptionsConfirmees.value[0] || {}
-  const niveau  = insc.niveau || 'A'
-  const niveauLabel = niveau === 'A' ? 'A' : niveau === 'B' ? 'B' : 'C'
-
-  // Contenu selon niveau
+  const insc       = inscriptionsConfirmees.value[0] || {}
+  const niveau     = insc.niveau || 'A'
   const contenuNiveau = {
-    A: 'Essentiel du TIC - Système d\'Exploitation - Traitement de texte de base - Power Point - Tableur de base - Internet de base',
+    A: "Essentiel du TIC - Système d'Exploitation - Traitement de texte de base - Power Point - Tableur de base - Internet de base",
     B: 'Traitement de texte avancé - Tableur avancé - Présentation avancée - Retouche photo - Publication assistée par ordinateur',
     C: 'Développement web - Base de données - Réseaux informatiques - Cybersécurité - Programmation',
   }
-  const contenu = contenuNiveau[niveau] || contenuNiveau['A']
-
-  const today   = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  const mention = moyenneGlobale.value
+  const contenu  = contenuNiveau[niveau] || contenuNiveau['A']
+  const today    = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const mention  = moyenneGlobale.value
     ? (moyenneGlobale.value >= 18 ? 'Excellent' : moyenneGlobale.value >= 16 ? 'Très Bien' : moyenneGlobale.value >= 14 ? 'Bien' : moyenneGlobale.value >= 12 ? 'Assez Bien' : 'Passable')
     : ''
+  const annee    = new Date().getFullYear()
+  const numCert  = `N° ${annee}/PIFTIC/CNFPPSH`
+  // Réutiliser la même fonction de génération HTML que telechargerCertificat
+  return _genererHtmlCertificat({ nomComplet, niveau, contenu, today, mention, numCert })
+}
 
-  // Numéro auto
-  const annee   = new Date().getFullYear()
-  const numCert = `N° ${annee}/PIFTIC/CNFPPSH`
-
-  const html = `<!DOCTYPE html>
+function _genererHtmlCertificat({ nomComplet, niveau, contenu, today, mention, numCert }) {
+  return `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8">
 <title>Attestation – ${nomComplet}</title>
 <style>
@@ -664,19 +661,6 @@ function telechargerCertificat() {
     html, body { width: 297mm; height: 210mm; }
     .page { page-break-after: avoid; }
   }
-.banniere-statut {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 24px;
-  font-size: 15px;
-  font-weight: 600;
-  animation: slideDown 0.3s ease;
-}
-.banniere-statut.success { background: #e8f5e9; color: #2e7d32; border-bottom: 3px solid #4CAF50; }
-.banniere-statut.error { background: #ffebee; color: #c62828; border-bottom: 3px solid #f44336; }
-.banniere-close { background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head><body>
 <div class="page">
@@ -744,7 +728,29 @@ function telechargerCertificat() {
 </div>
 <script>window.onload = () => { window.print(); }<\/script>
 </body></html>`
+}
 
+// Réservé à l'admin — non exposé dans l'UI apprenant
+function telechargerCertificat() {
+  const u          = auth.user
+  const prenom     = u?.prenom || u?.first_name || ''
+  const nomFam     = (u?.nom || u?.last_name || '').toUpperCase()
+  const nomComplet = `${nomFam} ${prenom}`.trim()
+  const insc       = inscriptionsConfirmees.value[0] || {}
+  const niveau     = insc.niveau || 'A'
+  const contenuNiveau = {
+    A: "Essentiel du TIC - Système d'Exploitation - Traitement de texte de base - Power Point - Tableur de base - Internet de base",
+    B: 'Traitement de texte avancé - Tableur avancé - Présentation avancée - Retouche photo - Publication assistée par ordinateur',
+    C: 'Développement web - Base de données - Réseaux informatiques - Cybersécurité - Programmation',
+  }
+  const contenu  = contenuNiveau[niveau] || contenuNiveau['A']
+  const today    = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const mention  = moyenneGlobale.value
+    ? (moyenneGlobale.value >= 18 ? 'Excellent' : moyenneGlobale.value >= 16 ? 'Très Bien' : moyenneGlobale.value >= 14 ? 'Bien' : moyenneGlobale.value >= 12 ? 'Assez Bien' : 'Passable')
+    : ''
+  const annee    = new Date().getFullYear()
+  const numCert  = `N° ${annee}/PIFTIC/CNFPPSH`
+  const html = _genererHtmlCertificat({ nomComplet, niveau, contenu, today, mention, numCert })
   const blob = new Blob([html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
   window.open(url, '_blank')
@@ -905,6 +911,43 @@ onMounted(() => { applyTheme(theme.value); charger() })
 
 /* Certificat */
 .certificat-dispo { display:flex; flex-direction:column; align-items:center; gap:10px; }
+
+/* ── Modal prévisualisation certificat ── */
+.certif-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.certif-modal {
+  background: #fff; border-radius: 16px;
+  width: 100%; max-width: 950px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+}
+.certif-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+.certif-modal-header h3 { margin: 0; font-size: 1rem; color: #1b5e20; }
+.certif-close-btn {
+  background: none; border: none; font-size: 1.2rem;
+  cursor: pointer; color: #666; padding: 4px 8px; border-radius: 6px;
+}
+.certif-close-btn:hover { background: #eee; color: #333; }
+.certif-modal-body { flex: 1; overflow: hidden; min-height: 0; }
+.certif-iframe { width: 100%; height: 100%; min-height: 480px; border: none; }
+.certif-modal-footer {
+  padding: 14px 24px; border-top: 1px solid #eee;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #f8f9fa; gap: 12px; flex-wrap: wrap;
+}
+.certif-notice {
+  font-size: 12px; color: #888; margin: 0;
+  display: flex; align-items: center; gap: 6px;
+}
 
 /* Empty */
 .empty-state { text-align:center; color:#888; padding:40px; background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.07); }
