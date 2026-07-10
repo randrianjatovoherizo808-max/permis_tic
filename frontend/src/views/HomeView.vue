@@ -418,7 +418,7 @@ function goApprenant() {
   if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
   else router.push('/login')
 }
-function goLogin() {
+function goLogin() { router.push("/login"); return
   if (auth.isAuthenticated) {
     if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
     else router.push('/admin')
