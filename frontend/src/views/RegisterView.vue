@@ -277,16 +277,18 @@ function validerStep1() {
 // Nettoyage en temps réel : supprime les caractères interdits et affiche un message
 const errPrenom = ref('')
 const errNom    = ref('')
-const REGEX_NOM = /^[a-zA-ZÀ-ÿ\s\-']*$/
+// Autorise lettres (avec accents), chiffres, espaces, tirets, apostrophes
+// Bloque uniquement les caractères spéciaux : @ # $ % ! & * ( ) etc.
+const REGEX_NOM_INTERDIT = /[^a-zA-ZÀ-ÿ\s\-']/g
 
 function nettoyerChamp(champ) {
-  const valeur   = form.value[champ] || ''
-  const nettoye  = valeur.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
-  const errRef   = champ === 'prenom' ? errPrenom : errNom
-  const label    = champ === 'prenom' ? 'prénom' : 'nom'
+  const valeur  = form.value[champ] || ''
+  const nettoye = valeur.replace(REGEX_NOM_INTERDIT, '')
+  const errRef  = champ === 'prenom' ? errPrenom : errNom
+  const label   = champ === 'prenom' ? 'prénom' : 'nom'
   if (valeur !== nettoye) {
     form.value[champ] = nettoye
-    errRef.value = `Le ${label} ne peut pas contenir de chiffres ou caractères spéciaux.`
+    errRef.value = `Le ${label} ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).`
   } else {
     errRef.value = ''
   }
@@ -299,13 +301,13 @@ function nettoyerChamp(champ) {
     return
   }
   // Seules les lettres (y compris accents), espaces, tirets et apostrophes sont autorisés
-  const regexNom = /^[a-zA-ZÀ-ÿ\s\-']+$/
-  if (!regexNom.test(prenom)) {
-    errStep1.value = 'Le prénom ne peut pas contenir de caractères spéciaux ou de chiffres.'
+  const regexNomInterdit = /[^a-zA-ZÀ-ÿ0-9\s\-']/
+  if (regexNomInterdit.test(prenom)) {
+    errStep1.value = 'Le prénom ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).'
     return
   }
-  if (!regexNom.test(nom)) {
-    errStep1.value = 'Le nom ne peut pas contenir de caractères spéciaux ou de chiffres.'
+  if (regexNomInterdit.test(nom)) {
+    errStep1.value = 'Le nom ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).'
     return
   }
   if (telephone && !/^[0-9]{10}$/.test(telephone)) {
