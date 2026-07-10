@@ -330,7 +330,6 @@ onMounted(charger)
 .attente-steps .step.active { background: #FFF3E0; color: #E65100; font-weight: 600; border: 1px solid #FF9800; }
 
 /* Formation detail */
-.formation-detail { }
 .fd-header { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
 .fd-header h3 { margin: 0; }
 .niveau-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; color: white; }
