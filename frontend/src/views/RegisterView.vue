@@ -276,6 +276,16 @@ function validerStep1() {
     errStep1.value = 'Veuillez remplir tous les champs obligatoires.'
     return
   }
+  // Seules les lettres (y compris accents), espaces, tirets et apostrophes sont autorisés
+  const regexNom = /^[a-zA-ZÀ-ÿ\s\-']+$/
+  if (!regexNom.test(prenom)) {
+    errStep1.value = 'Le prénom ne peut pas contenir de caractères spéciaux ou de chiffres.'
+    return
+  }
+  if (!regexNom.test(nom)) {
+    errStep1.value = 'Le nom ne peut pas contenir de caractères spéciaux ou de chiffres.'
+    return
+  }
   if (telephone && !/^[0-9]{10}$/.test(telephone)) {
     errStep1.value = 'Le téléphone doit contenir exactement 10 chiffres.'
     return
