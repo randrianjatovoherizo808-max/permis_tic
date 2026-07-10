@@ -35,7 +35,7 @@
                 <span class="badge-if">IF</span>
                 <span class="badge-tic">TI</span>
               </div>
-              <div class="badge-bottom">CNFPPSH</div>
+              <div class="badge-bottom">CNFPPS</div>
             </div>
             <span class="badge-c">C</span>
           </div>
@@ -414,20 +414,13 @@ function niveauIcon(niveau) {
   return { A: '💻', B: '🎨', C: '🚀' }[niveau] || '📘'
 }
 
-function _etudiantRoute() {
-  // Vérifie si l'étudiant a une inscription confirmée
-  const inscriptions = auth.user?.inscriptions || []
-  const aConfirme = inscriptions.some(i => i.statut === 'confirme')
-  return aConfirme ? '/espace-apprenant' : '/auth/google/success'
-}
-
 function goApprenant() {
-  if (auth.user?.role === 'etudiant') router.push(_etudiantRoute())
+  if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
   else router.push('/login')
 }
 function goLogin() {
   if (auth.isAuthenticated) {
-    if (auth.user?.role === 'etudiant') router.push(_etudiantRoute())
+    if (auth.user?.role === 'etudiant') router.push('/espace-apprenant')
     else router.push('/admin')
   } else {
     router.push('/login')
@@ -633,7 +626,7 @@ onUnmounted(() => {
 /* Corps */
 .card-body { padding: 22px 22px 20px; display: flex; flex-direction: column; flex: 1; }
 .card-title { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 900; color: #1a1a2e; margin: 0 0 6px; text-transform: capitalize; }
-.card-desc { font-size: .82rem; color: #9199a8; line-height: 1.65; margin-bottom: 16px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-desc { font-size: .82rem; color: #9199a8; line-height: 1.65; margin-bottom: 16px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Méta pills */
 .card-meta { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -705,11 +698,23 @@ onUnmounted(() => {
   .main-nav.open { display: block; }
   .nav-inner { flex-direction: column; gap: 0; }
   .nav-link { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,.1); border-right: none; }
-  .header-inner { grid-template-columns: auto 1fr auto; }
+  .header-inner { grid-template-columns: auto 1fr auto; gap: 8px; }
+  .header-center { display: none; }
   .wa-display { display: none; }
-  .stats-band { flex-direction: column; }
+  .stats-band { display: grid; grid-template-columns: 1fr 1fr; }
   .stat-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,.1); padding: 14px 20px; }
   .footer-links { flex-direction: column; gap: 8px; }
+  .hero { padding: 40px 16px 60px; }
+  .hero-title { font-size: clamp(1.8rem, 8vw, 2.5rem); }
+  .hero-sub { font-size: 0.95rem; }
+  .btn-cta { padding: 14px 28px; font-size: 0.95rem; }
+  .niveau-cards-grid { grid-template-columns: 1fr; max-width: 100%; }
+  .nv-card { padding: 24px 20px; }
+  .cta-inner { padding: 32px 16px; }
+  .logo-badge { display: none; }
+  .header-actions { gap: 8px; }
+  .topbar-btn-connexion { padding: 6px 12px; font-size: 12px; }
+  .btn-inscription { padding: 8px 14px; font-size: 12px; }
 }
 
 /* ══════════════════════════════════════════════════════════
