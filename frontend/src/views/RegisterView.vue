@@ -32,12 +32,14 @@
         <div class="form-group">
           <label>{{ t.prenomLabel }} *</label>
           <input v-model="form.prenom" type="text" required placeholder="Votre prénom" autocomplete="given-name"
-            @keypress="filtrerCaracteres" @paste="filtrerCollage($event, 'prenom')" />
+            @input="nettoyerChamp('prenom')" />
+          <span v-if="errPrenom" class="err-inline">⚠️ {{ errPrenom }}</span>
         </div>
         <div class="form-group">
           <label>{{ t.nomLabel }} *</label>
           <input v-model="form.nom" type="text" required placeholder="Votre nom" autocomplete="family-name"
-            @keypress="filtrerCaracteres" @paste="filtrerCollage($event, 'nom')" />
+            @input="nettoyerChamp('nom')" />
+          <span v-if="errNom" class="err-inline">⚠️ {{ errNom }}</span>
         </div>
         <div class="form-group">
           <label>Email *</label>
@@ -272,18 +274,22 @@ async function chargerFormations() {
 }
 
 function validerStep1() {
-// Bloquer la saisie de caractères spéciaux et chiffres en temps réel
-function filtrerCaracteres(e) {
-  const allowed = /^[a-zA-ZÀ-ÿ\s\-']$/
-  if (!allowed.test(e.key)) {
-    e.preventDefault()
+// Nettoyage en temps réel : supprime les caractères interdits et affiche un message
+const errPrenom = ref('')
+const errNom    = ref('')
+const REGEX_NOM = /^[a-zA-ZÀ-ÿ\s\-']*$/
+
+function nettoyerChamp(champ) {
+  const valeur   = form.value[champ] || ''
+  const nettoye  = valeur.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
+  const errRef   = champ === 'prenom' ? errPrenom : errNom
+  const label    = champ === 'prenom' ? 'prénom' : 'nom'
+  if (valeur !== nettoye) {
+    form.value[champ] = nettoye
+    errRef.value = `Le ${label} ne peut pas contenir de chiffres ou caractères spéciaux.`
+  } else {
+    errRef.value = ''
   }
-}
-function filtrerCollage(e, champ) {
-  e.preventDefault()
-  const texte = (e.clipboardData || window.clipboardData).getData('text')
-  const nettoye = texte.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
-  form.value[champ] = (form.value[champ] || '') + nettoye
 }
 
   errStep1.value = ''
@@ -471,5 +477,12 @@ onMounted(async () => {
   .formations-list { max-height: 260px; }
   .step-nav { flex-direction: column; }
   .step-nav .btn { width: 100%; }
+}
+.err-inline {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #c62828;
+  font-weight: 500;
 }
 </style>
