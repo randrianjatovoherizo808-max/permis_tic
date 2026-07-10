@@ -626,7 +626,7 @@ onUnmounted(() => {
 /* Corps */
 .card-body { padding: 22px 22px 20px; display: flex; flex-direction: column; flex: 1; }
 .card-title { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 900; color: #1a1a2e; margin: 0 0 6px; text-transform: capitalize; }
-.card-desc { font-size: .82rem; color: #9199a8; line-height: 1.65; margin-bottom: 16px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-desc { font-size: .82rem; color: #9199a8; line-height: 1.65; margin-bottom: 16px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Méta pills */
 .card-meta { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }

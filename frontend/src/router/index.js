@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import PendingView from '../views/PendingView.vue'
 import { useAuthStore } from '../store/auth'
 import { useToast } from '../composables/useToast'
 
@@ -166,6 +167,12 @@ const routes = [
   
   // ── Google OAuth callback ──
   {
+    path: '/pending',
+    name: 'pending',
+    component: PendingView,
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/auth/google/success',
     name: 'google-auth-success',
     component: GoogleAuthSuccessView,
@@ -269,8 +276,7 @@ router.beforeEach(async (to, _from, next) => {
     const inscriptions = auth.user?.inscriptions || []
     const aConfirme = inscriptions.some(i => i.statut === 'confirme')
     if (!aConfirme) {
-      // Rediriger vers la page d'attente/inscription, pas vers home
-      return next({ path: '/auth/google/success' })
+      return next({ path: '/pending' })
     }
   }
 
