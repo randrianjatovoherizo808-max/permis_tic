@@ -172,20 +172,21 @@
           <RouterLink to="/login" class="btn btn-primary btn-full">🔐 Se connecter</RouterLink>
         </div>
       </div>
-<!-- Bouton Google -->
-<div class="google-box">
-  <button class="google-btn" @click="googleRegister">
-    <img
-      src="https://developers.google.com/identity/images/g-logo.png"
-      alt="Google"
-      class="google-icon"
-    />
-    {{ t.sinscrireGoogle }}
-  </button>
-</div>
-<p class="auth-link">
-  {{ t.dejaInscrit }} <RouterLink to="/login">{{ t.seConnecter }}</RouterLink>
-</p>
+
+      <!-- Bouton Google -->
+      <div class="google-box">
+        <button class="google-btn" @click="googleRegister">
+          <img
+            src="https://developers.google.com/identity/images/g-logo.png"
+            alt="Google"
+            class="google-icon"
+          />
+          {{ t.sinscrireGoogle }}
+        </button>
+      </div>
+      <p class="auth-link">
+        {{ t.dejaInscrit }} <RouterLink to="/login">{{ t.seConnecter }}</RouterLink>
+      </p>
     </div>
   </div>
 </template>
@@ -214,6 +215,25 @@ const loadingFormations = ref(false)
 const formations        = ref([])
 const telError          = ref('')
 
+// ── Validation prénom / nom ──────────────────────────────────────────
+const errPrenom = ref('')
+const errNom    = ref('')
+
+function nettoyerChamp(champ) {
+  const valeur  = form.value[champ] || ''
+  // Autorise uniquement lettres (avec accents), espaces, tirets, apostrophes
+  const nettoye = valeur.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
+  const errRef  = champ === 'prenom' ? errPrenom : errNom
+  const label   = champ === 'prenom' ? 'prénom' : 'nom'
+  if (valeur !== nettoye) {
+    form.value[champ] = nettoye
+    errRef.value = `Le ${label} ne peut pas contenir de chiffres ou caractères spéciaux.`
+  } else {
+    errRef.value = ''
+  }
+}
+// ─────────────────────────────────────────────────────────────────────
+
 const form = ref({
   prenom: '', nom: '', email: '', telephone: '',
   password: '', passwordConfirm: '',
@@ -221,13 +241,12 @@ const form = ref({
 })
 
 function googleRegister() {
- window.location.href = `${import.meta.env.VITE_API_URL}/auth/google/`
+  window.location.href = `${import.meta.env.VITE_API_URL}/auth/google/`
 }
 
 function onTelephoneInput(e) {
   const raw = e.target.value
   const cleaned = raw.replace(/\D/g, '').slice(0, 10)
-
   if (/[^0-9]/.test(raw)) {
     telError.value = 'Seuls les chiffres sont autorisés.'
   } else if (raw.replace(/\D/g, '').length > 10) {
@@ -235,7 +254,6 @@ function onTelephoneInput(e) {
   } else {
     telError.value = ''
   }
-
   form.value.telephone = cleaned
 }
 
@@ -250,10 +268,6 @@ function onTelephonePaste(e) {
   }
   form.value.telephone = cleaned
 }
-
-
-
-
 
 const stepBarWidth = computed(() => `${(step.value - 1) * 50}%`)
 
@@ -274,40 +288,14 @@ async function chargerFormations() {
 }
 
 function validerStep1() {
-// Nettoyage en temps réel : supprime les caractères interdits et affiche un message
-const errPrenom = ref('')
-const errNom    = ref('')
-// Autorise lettres (avec accents), chiffres, espaces, tirets, apostrophes
-// Bloque uniquement les caractères spéciaux : @ # $ % ! & * ( ) etc.
-const REGEX_NOM_INTERDIT = /[^a-zA-ZÀ-ÿ\s\-']/g
-
-function nettoyerChamp(champ) {
-  const valeur  = form.value[champ] || ''
-  const nettoye = valeur.replace(REGEX_NOM_INTERDIT, '')
-  const errRef  = champ === 'prenom' ? errPrenom : errNom
-  const label   = champ === 'prenom' ? 'prénom' : 'nom'
-  if (valeur !== nettoye) {
-    form.value[champ] = nettoye
-    errRef.value = `Le ${label} ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).`
-  } else {
-    errRef.value = ''
-  }
-}
-
   errStep1.value = ''
   const { prenom, nom, email, telephone, password, passwordConfirm } = form.value
   if (!prenom || !nom || !email || !password) {
     errStep1.value = 'Veuillez remplir tous les champs obligatoires.'
     return
   }
-  // Seules les lettres (y compris accents), espaces, tirets et apostrophes sont autorisés
-  const regexNomInterdit = /[^a-zA-ZÀ-ÿ0-9\s\-']/
-  if (regexNomInterdit.test(prenom)) {
-    errStep1.value = 'Le prénom ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).'
-    return
-  }
-  if (regexNomInterdit.test(nom)) {
-    errStep1.value = 'Le nom ne peut pas contenir de caractères spéciaux (@, #, $, !, &…).'
+  if (errPrenom.value || errNom.value) {
+    errStep1.value = 'Veuillez corriger les erreurs dans le formulaire.'
     return
   }
   if (telephone && !/^[0-9]{10}$/.test(telephone)) {
@@ -357,21 +345,18 @@ async function soumettre() {
   }
 }
 
-// useRoute au niveau setup (pas dans onMounted)
 const route = useRoute()
 
 onMounted(async () => {
   await chargerFormations()
-  // Pré-remplir depuis query param ?formation=ID (venant de FormationsPublicView)
   const fid = route.query.formation ? parseInt(route.query.formation) : null
   if (fid) {
     const f = formations.value.find(f => f.id === fid)
     if (f) {
-      form.value.formation      = f.id
-      form.value.formationNom   = f.nom
+      form.value.formation       = f.id
+      form.value.formationNom    = f.nom
       form.value.formationNiveau = f.niveau
-      niveauSelec.value         = f.niveau
-      // Aller directement à l'étape 2 avec formation pré-sélectionnée
+      niveauSelec.value          = f.niveau
       step.value = 2
     }
   }
@@ -434,42 +419,18 @@ onMounted(async () => {
 .auth-link   { text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--gray); }
 .auth-link a { color: var(--primary); font-weight: 700; text-decoration: none; }
 
-.google-box {
-  margin-bottom: 20px;
-}
-
+.google-box { margin-bottom: 20px; }
 .google-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-
-  padding: 12px 16px;
-  background: white;
-  border: 1px solid #dadce0;
-  border-radius: 12px;
-
-  font-size: 14px;
-  font-weight: 600;
-  color: #3c4043;
-
-  cursor: pointer;
-  transition: all 0.2s ease;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 12px 16px; background: white; border: 1px solid #dadce0; border-radius: 12px;
+  font-size: 14px; font-weight: 600; color: #3c4043; cursor: pointer; transition: all 0.2s ease;
 }
+.google-btn:hover { background: #f8f9fa; border-color: #4285f4; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.google-icon { width: 20px; height: 20px; }
 
-.google-btn:hover {
-  background: #f8f9fa;
-  border-color: #4285f4;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+.err-inline {
+  display: block; margin-top: 5px; font-size: 12px; color: #c62828; font-weight: 500;
 }
-
-.google-icon {
-  width: 20px;
-  height: 20px;
-}
-
-
 
 @media (max-width: 500px) {
   .register-page { padding: 0; align-items: flex-start; }
@@ -479,12 +440,5 @@ onMounted(async () => {
   .formations-list { max-height: 260px; }
   .step-nav { flex-direction: column; }
   .step-nav .btn { width: 100%; }
-}
-.err-inline {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
-  color: #c62828;
-  font-weight: 500;
 }
 </style>
