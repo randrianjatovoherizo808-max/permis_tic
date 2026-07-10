@@ -31,11 +31,13 @@
       <div v-if="step === 1">
         <div class="form-group">
           <label>{{ t.prenomLabel }} *</label>
-          <input v-model="form.prenom" type="text" required placeholder="Votre prénom" autocomplete="given-name" />
+          <input v-model="form.prenom" type="text" required placeholder="Votre prénom" autocomplete="given-name"
+            @keypress="filtrerCaracteres" @paste="filtrerCollage($event, 'prenom')" />
         </div>
         <div class="form-group">
           <label>{{ t.nomLabel }} *</label>
-          <input v-model="form.nom" type="text" required placeholder="Votre nom" autocomplete="family-name" />
+          <input v-model="form.nom" type="text" required placeholder="Votre nom" autocomplete="family-name"
+            @keypress="filtrerCaracteres" @paste="filtrerCollage($event, 'nom')" />
         </div>
         <div class="form-group">
           <label>Email *</label>
@@ -270,6 +272,20 @@ async function chargerFormations() {
 }
 
 function validerStep1() {
+// Bloquer la saisie de caractères spéciaux et chiffres en temps réel
+function filtrerCaracteres(e) {
+  const allowed = /^[a-zA-ZÀ-ÿ\s\-']$/
+  if (!allowed.test(e.key)) {
+    e.preventDefault()
+  }
+}
+function filtrerCollage(e, champ) {
+  e.preventDefault()
+  const texte = (e.clipboardData || window.clipboardData).getData('text')
+  const nettoye = texte.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
+  form.value[champ] = (form.value[champ] || '') + nettoye
+}
+
   errStep1.value = ''
   const { prenom, nom, email, telephone, password, passwordConfirm } = form.value
   if (!prenom || !nom || !email || !password) {
