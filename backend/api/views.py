@@ -84,9 +84,7 @@ def _send_html_email(subject, to_email, preheader, body_html, cta_link=None, cta
 </body></html>"""
 
     text = f"{preheader}\n\n{subject}\n\nLien : {cta_link or ''}"
-    # ✅ Toujours utiliser DEFAULT_FROM_EMAIL (onboarding@resend.dev pour Resend)
-    # Ne jamais utiliser EMAIL_HOST_USER (gmail.com) avec Resend → erreur 403
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+    from_email = settings.EMAIL_HOST_USER or settings.DEFAULT_FROM_EMAIL or 'noreply@permistic.mg'
     msg = EmailMultiAlternatives(subject, text, from_email, [to_email])
     msg.attach_alternative(html, "text/html")
 
@@ -152,38 +150,24 @@ def forgot_password(request):
     code = f"{random.randint(0, 999999):06d}"
     OtpCode.objects.create(user=user, code=code)
 
-    # Tentative d'envoi par email (si disponible)
-    email_envoye = False
-    try:
-        _send_html_email(
-            subject   = '🔐 Votre code de vérification – Permis TIC',
-            to_email  = email,
-            preheader = f'Votre code de réinitialisation : {code}',
-            body_html = (
-                f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
-                f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
-                f"<p>Voici votre code de vérification à 6 chiffres :</p>"
-                f"<div style='text-align:center;margin:28px 0;'>"
-                f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
-                f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
-                f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
-                f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
-                f"border-radius:6px;font-size:13px;color:#555;'>"
-                f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
-            ),
-        )
-        email_envoye = True
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Erreur envoi email OTP à {email}: {e}")
-
-    # Toujours retourner le code dans la réponse (fallback universel)
-    return Response({
-        'message': 'Code envoyé' if email_envoye else 'Code généré',
-        'code': code,  # Le frontend affiche ce code directement
-        'email_envoye': email_envoye,
-    })
+    _send_html_email(
+        subject   = '🔐 Votre code de vérification – Permis TIC',
+        to_email  = email,
+        preheader = f'Votre code de réinitialisation : {code}',
+        body_html = (
+            f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
+            f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
+            f"<p>Voici votre code de vérification à 6 chiffres :</p>"
+            f"<div style='text-align:center;margin:28px 0;'>"
+            f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
+            f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
+            f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
+            f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
+            f"border-radius:6px;font-size:13px;color:#555;'>"
+            f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
+        ),
+    )
+    return Response({'message': 'Code envoyé'})
     
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -276,14 +260,6 @@ def me(request):
         tel = user.profil.telephone
     except Profil.DoesNotExist:
         tel = ''
-    # Statut des inscriptions de l'étudiant (pour le blocage frontend)
-    inscriptions_statut = []
-    if role == 'etudiant':
-        inscriptions_statut = list(
-            Inscription.objects.filter(utilisateur=user)
-            .values('niveau', 'statut', 'motif_rejet')
-        )
-
     return Response({
         'id':         user.id,
         'email':      user.email,
@@ -298,8 +274,6 @@ def me(request):
         'telephone':  tel,
         'is_active':  user.is_active,
         'photo_url':  getattr(user.profil, 'photo_url', '') if hasattr(user, 'profil') else '',
-        # Liste des inscriptions avec leur statut (utilisé par le router pour bloquer l'accès)
-        'inscriptions': inscriptions_statut,
     })
 
 
@@ -370,35 +344,14 @@ def register(request):
         user=user, defaults={'telephone': telephone, 'role': role}
     )
 
-    # Inscription à la formation choisie lors de l'inscription (apprenant public)
-    formation_id = request.data.get('formation', None)
-    niveau_brut  = request.data.get('niveau', '').upper()
-
-    if role == 'etudiant':
-        formation_obj = None
-        niveau_final  = None
-
-        if formation_id:
-            try:
-                formation_obj = Formation.objects.get(pk=formation_id)
-                niveau_final  = formation_obj.niveau
-            except Formation.DoesNotExist:
-                pass
-
-        if not formation_obj and niveau_brut in ('A', 'B', 'C'):
-            niveau_final = niveau_brut
-
-        if niveau_final:
-            from django.db import IntegrityError
-            try:
-                Inscription.objects.get_or_create(
-                    utilisateur=user,
-                    formation=formation_obj,
-                    niveau=niveau_final,
-                    defaults={'telephone': telephone, 'statut': 'en_attente'}
-                )
-            except IntegrityError:
-                pass  # Inscription déjà existante, on ignore
+    # Inscription au niveau si fourni (apprenant public)
+    niveau = request.data.get('niveau', '').upper()
+    if niveau in ('A', 'B', 'C') and role == 'etudiant':
+        Inscription.objects.get_or_create(
+            utilisateur=user,
+            niveau=niveau,
+            defaults={'telephone': telephone, 'statut': 'en_attente'}
+        )
 
     return Response({'message': 'Compte créé avec succès.'}, status=201)
 
@@ -570,41 +523,26 @@ def users_list(request):
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def user_detail(request, pk):
-    try:
-        user = get_object_or_404(User, pk=pk)
-
-        # S'assurer que le Profil existe (evite crash sur profil manquant)
-        Profil.objects.get_or_create(user=user, defaults={'role': (
-            'admin' if user.is_superuser else 'formateur' if user.is_staff else 'etudiant'
-        )})
-
-        if request.method == 'GET':
-            return Response(UserSerializer(user).data)
-
-        if request.method == 'PATCH':
-            if not is_staff_or_admin(request.user):
-                return Response(status=403)
-            for field, value in request.data.items():
-                if field == 'is_active':
-                    user.is_active = bool(value)
-                elif field == 'first_name':
-                    user.first_name = value
-                elif field == 'last_name':
-                    user.last_name = value
-                elif field == 'email':
-                    user.email = value
-            user.save()
-            return Response(UserSerializer(user).data)
-
-        if request.method == 'DELETE':
-            if not is_admin(request.user):
-                return Response(status=403)
-            user.delete()
-            return Response(status=204)
-
-    except Exception as e:
-        logging.error(f"user_detail error pk={pk}: {e}", exc_info=True)
-        return Response({'error': 'Une erreur est survenue.'}, status=500)
+    user = get_object_or_404(User, pk=pk)
+    if request.method == 'GET':
+        return Response(UserSerializer(user).data)
+    if request.method == 'PATCH':
+        if not is_staff_or_admin(request.user):
+            return Response(status=403)
+        for field, value in request.data.items():
+            if field == 'is_active':
+                user.is_active = value
+            elif field == 'first_name':
+                user.first_name = value
+            elif field == 'last_name':
+                user.last_name = value
+        user.save()
+        return Response(UserSerializer(user).data)
+    if request.method == 'DELETE':
+        if not is_admin(request.user):
+            return Response(status=403)
+        user.delete()
+        return Response(status=204)
     
 
   
@@ -858,20 +796,13 @@ def inscrire_niveau(request):
         elif existante.statut == 'rejete':
             existante.delete()
 
-    from django.db import IntegrityError
-    try:
-        insc = Inscription.objects.create(
-            utilisateur=request.user,
-            formation=formation,
-            niveau=niveau,
-            telephone=telephone,
-            statut='en_attente'
-        )
-    except IntegrityError:
-        return Response(
-            {'error': 'Vous êtes déjà inscrit(e) à cette formation ou ce niveau.'},
-            status=400
-        )
+    insc = Inscription.objects.create(
+        utilisateur=request.user,
+        formation=formation,
+        niveau=niveau,
+        telephone=telephone,
+        statut='en_attente'
+    )
 
     niveau_labels = {'A': 'Niveau A – Débutant', 'B': 'Niveau B – Intermédiaire', 'C': 'Niveau C – Avancé'}
     niveau_label = niveau_labels.get(niveau, f'Niveau {niveau}')
@@ -895,8 +826,8 @@ def inscrire_niveau(request):
                 f"<p style='font-size:13px;color:#888;'>Merci de votre patience.</p>"
             ),
         )
-    except Exception as e:
-        logging.error(f"EMAIL ERROR: {e}")
+    except Exception:
+        pass
 
     return Response({'message': f'Inscription au {niveau_label} enregistrée.', 'statut': insc.statut}, status=201)
 
@@ -970,8 +901,8 @@ def inscription_confirmer(request, pk):
             cta_link  = reset_link,
             cta_label = cta_label_txt,
         )
-    except Exception as e:
-        logging.error(f"EMAIL ERROR: {e}")
+    except Exception:
+        pass
 
     return Response(InscriptionSerializer(insc).data)
 
