@@ -478,13 +478,6 @@ def google_callback(request):
         inscriptions = Inscription.objects.filter(utilisateur=user).values('niveau', 'statut')
         niveaux_inscrits = list(inscriptions)
 
-    # Vérifier si l'utilisateur a déjà une inscription confirmée (pour s'inscrire à un autre cours)
-    a_inscription_confirmee = False
-    if role == 'etudiant':
-        a_inscription_confirmee = Inscription.objects.filter(
-            utilisateur=user, statut='confirme'
-        ).exists()
-
     photo_url = ''
     if hasattr(user, 'profil'):
         photo_url = getattr(user.profil, 'photo_url', '') or ''
@@ -494,7 +487,10 @@ def google_callback(request):
         'refresh':               str(refresh),
         'role':                  role,
         'niveaux_inscrits':      json.dumps(niveaux_inscrits),
-        'new_inscription':       '1' if a_inscription_confirmee else '0',
+        # ✅ new_inscription reste à '0' sur une connexion normale : une inscription
+        # confirmée doit toujours rediriger directement vers l'espace apprenant,
+        # jamais vers la page de choix de formation.
+        'new_inscription':       '0',
         'photo_url':             photo_url,
         # ✅ is_new_user=1 → le frontend doit rediriger vers la sélection de niveau
         'is_new_user':           '1' if created else '0',
