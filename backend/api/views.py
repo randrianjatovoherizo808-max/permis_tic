@@ -260,6 +260,13 @@ def me(request):
         tel = user.profil.telephone
     except Profil.DoesNotExist:
         tel = ''
+    # ✅ Nécessaire pour le garde de navigation (/espace-apprenant) et PendingView,
+    # qui déterminent l'accès à l'espace apprenant à partir de auth.user.inscriptions.
+    inscriptions = []
+    if role == 'etudiant':
+        inscriptions = list(
+            Inscription.objects.filter(utilisateur=user).values('niveau', 'statut')
+        )
     return Response({
         'id':         user.id,
         'email':      user.email,
@@ -274,6 +281,7 @@ def me(request):
         'telephone':  tel,
         'is_active':  user.is_active,
         'photo_url':  getattr(user.profil, 'photo_url', '') if hasattr(user, 'profil') else '',
+        'inscriptions': inscriptions,
     })
 
 
