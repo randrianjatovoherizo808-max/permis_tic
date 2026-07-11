@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="apprenant-page">
     <!-- Header -->
     <header class="appr-header">
@@ -16,7 +16,10 @@
       <div class="profile-cover">
         <div class="cover-bg"></div>
         <div class="profile-card">
-          <div class="avatar">{{ initiales }}</div>
+          <div class="avatar">
+            <img v-if="auth.user?.photo_url" :src="auth.user.photo_url" alt="Photo de profil" class="avatar-img" referrerpolicy="no-referrer" />
+            <span v-else>{{ initiales }}</span>
+          </div>
           <div class="profile-info">
             <h2>{{ auth.user?.prenom }} {{ auth.user?.nom }}</h2>
             <p>{{ auth.user?.email }}</p>
@@ -298,7 +301,8 @@ onMounted(charger)
 .profile-cover { background: white; border-radius: 0 0 24px 24px; box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
 .cover-bg { height: 140px; background: linear-gradient(135deg, #1B5E20, #4CAF50, #FFC107); }
 .profile-card { display: flex; align-items: flex-end; gap: 16px; padding: 0 24px 18px; }
-.avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid white; background: linear-gradient(135deg, #4CAF50, #1B5E20); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 900; color: white; margin-top: -40px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid white; background: linear-gradient(135deg, #4CAF50, #1B5E20); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 900; color: white; margin-top: -40px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.2); overflow: hidden; }
+.avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .profile-info h2 { font-size: 1.3rem; font-weight: 900; margin: 0; }
 .profile-info p { color: var(--gray); font-size: 0.82rem; margin: 2px 0 8px; }
 .badges { display: flex; gap: 8px; flex-wrap: wrap; }
