@@ -227,33 +227,50 @@
     <div v-if="showNiveauModal" class="cert-modal-overlay" @click.self="fermerChoixNiveau">
       <div class="cert-modal-box" style="max-width:420px;padding:28px 24px;">
         <button class="cert-modal-close" @click="fermerChoixNiveau" title="Fermer">×</button>
-        <h3 style="margin-bottom:6px;">🎓 Choisir un niveau d'inscription</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">
-          Sélectionnez le niveau qui vous intéresse, puis validez avec « OK ».
-        </p>
 
-        <div class="niveau-choices">
-          <div v-for="niv in niveauxOptions" :key="niv.value"
-               class="niveau-choice"
-               :class="{ 'niveau-choice--active': niveauChoisi === niv.value }"
-               @click="niveauChoisi = niv.value">
-            <span class="niv-icon">{{ niv.icon }}</span>
-            <div>
-              <strong>{{ niv.label }}</strong>
-              <small>{{ niv.desc }}</small>
-            </div>
-          </div>
+        <!-- Écran de confirmation après envoi réussi -->
+        <div v-if="inscriptionReussie" style="text-align:center;padding:12px 0;">
+          <div style="font-size:2.5rem;margin-bottom:8px;">⏳</div>
+          <h3 style="margin-bottom:8px;">Inscription enregistrée</h3>
+          <p style="font-size:14px;color:#555;margin-bottom:20px;">
+            Votre demande a bien été envoyée et est <strong>en attente de validation</strong>
+            par l'administrateur. Vous recevrez un email dès que votre accès sera activé.
+          </p>
+          <button class="btn btn-primary" style="width:100%;" @click="fermerChoixNiveau">
+            OK
+          </button>
         </div>
 
-        <p v-if="erreurInscription" class="alert error-msg" style="background:#ffebee;padding:10px 14px;border-radius:8px;margin-top:12px;font-size:13px;">
-          {{ erreurInscription }}
-        </p>
+        <!-- Choix du niveau -->
+        <div v-else>
+          <h3 style="margin-bottom:6px;">🎓 Choisir un niveau d'inscription</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            Sélectionnez le niveau qui vous intéresse, puis validez avec « OK ».
+          </p>
 
-        <button class="btn btn-primary" style="width:100%;margin-top:18px;"
-                :disabled="!niveauChoisi || inscriptionEnCours"
-                @click="confirmerNiveau">
-          {{ inscriptionEnCours ? 'Envoi…' : 'OK' }}
-        </button>
+          <div class="niveau-choices">
+            <div v-for="niv in niveauxOptions" :key="niv.value"
+                 class="niveau-choice"
+                 :class="{ 'niveau-choice--active': niveauChoisi === niv.value }"
+                 @click="niveauChoisi = niv.value">
+              <span class="niv-icon">{{ niv.icon }}</span>
+              <div>
+                <strong>{{ niv.label }}</strong>
+                <small>{{ niv.desc }}</small>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="erreurInscription" class="alert error-msg" style="background:#ffebee;padding:10px 14px;border-radius:8px;margin-top:12px;font-size:13px;">
+            {{ erreurInscription }}
+          </p>
+
+          <button class="btn btn-primary" style="width:100%;margin-top:18px;"
+                  :disabled="!niveauChoisi || inscriptionEnCours"
+                  @click="confirmerNiveau">
+            {{ inscriptionEnCours ? 'Envoi…' : 'OK' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -285,6 +302,7 @@ const tabActif    = ref('formations')
 const showNiveauModal   = ref(false)
 const niveauChoisi      = ref('')
 const inscriptionEnCours = ref(false)
+const inscriptionReussie = ref(false)
 const erreurInscription = ref('')
 const niveauxOptions = [
   { value: 'A', label: 'Niveau A – Débutant',      icon: '🟢', desc: 'Bureautique & outils essentiels' },
@@ -295,11 +313,13 @@ const niveauxOptions = [
 function ouvrirChoixNiveau() {
   niveauChoisi.value = ''
   erreurInscription.value = ''
+  inscriptionReussie.value = false
   showNiveauModal.value = true
 }
 
 function fermerChoixNiveau() {
   showNiveauModal.value = false
+  inscriptionReussie.value = false
 }
 
 async function confirmerNiveau() {
@@ -308,8 +328,8 @@ async function confirmerNiveau() {
   erreurInscription.value = ''
   try {
     await api.post('/inscriptions/inscrire/', { niveau: niveauChoisi.value })
-    showNiveauModal.value = false
-    await charger()   // recharge l'état d'inscription (passera en "en attente")
+    inscriptionReussie.value = true   // affiche l'écran "en attente de validation"
+    await charger()   // recharge l'état d'inscription en arrière-plan
   } catch (e) {
     erreurInscription.value = e?.response?.data?.error || "Impossible d'enregistrer l'inscription."
   } finally {
