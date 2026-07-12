@@ -112,6 +112,9 @@
           <div class="fd-formateur" v-if="inscription.formation_formateur">
             👨‍🏫 Formateur : <strong>{{ inscription.formation_formateur }}</strong>
           </div>
+          <button class="btn btn-outline" style="margin-top:16px" @click="ouvrirChoixNiveau">
+            🎓 Niveau d'inscription
+          </button>
         </div>
       </div>
 
