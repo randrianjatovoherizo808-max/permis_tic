@@ -70,6 +70,9 @@
         <!-- Aucune inscription -->
         <div v-else-if="!inscription" class="empty-state">
           <p>Vous n’êtes inscrit à aucune formation pour le moment.</p>
+          <button class="btn btn-primary" style="margin-top:14px" @click="ouvrirChoixNiveau">
+            🎓 Niveau d'inscription
+          </button>
         </div>
 
         <!-- En attente de confirmation admin -->
@@ -216,6 +219,40 @@
         <p class="cert-view-watermark">Aperçu en lecture seule — non téléchargeable, non imprimable depuis cette fenêtre</p>
       </div>
     </div>
+
+    <!-- MODALE : Choix du niveau d'inscription -->
+    <div v-if="showNiveauModal" class="cert-modal-overlay" @click.self="fermerChoixNiveau">
+      <div class="cert-modal-box" style="max-width:420px;padding:28px 24px;">
+        <button class="cert-modal-close" @click="fermerChoixNiveau" title="Fermer">×</button>
+        <h3 style="margin-bottom:6px;">🎓 Choisir un niveau d'inscription</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+          Sélectionnez le niveau qui vous intéresse, puis validez avec « OK ».
+        </p>
+
+        <div class="niveau-choices">
+          <div v-for="niv in niveauxOptions" :key="niv.value"
+               class="niveau-choice"
+               :class="{ 'niveau-choice--active': niveauChoisi === niv.value }"
+               @click="niveauChoisi = niv.value">
+            <span class="niv-icon">{{ niv.icon }}</span>
+            <div>
+              <strong>{{ niv.label }}</strong>
+              <small>{{ niv.desc }}</small>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="erreurInscription" class="alert error-msg" style="background:#ffebee;padding:10px 14px;border-radius:8px;margin-top:12px;font-size:13px;">
+          {{ erreurInscription }}
+        </p>
+
+        <button class="btn btn-primary" style="width:100%;margin-top:18px;"
+                :disabled="!niveauChoisi || inscriptionEnCours"
+                @click="confirmerNiveau">
+          {{ inscriptionEnCours ? 'Envoi…' : 'OK' }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -240,6 +277,42 @@ const certificatOuvert = ref(null)
 const certificatHtml   = ref('')
 const certScale        = ref(1)
 const tabActif    = ref('formations')
+
+// ── Choix du niveau d'inscription (apprenant sans inscription active) ──
+const showNiveauModal   = ref(false)
+const niveauChoisi      = ref('')
+const inscriptionEnCours = ref(false)
+const erreurInscription = ref('')
+const niveauxOptions = [
+  { value: 'A', label: 'Niveau A – Débutant',      icon: '🟢', desc: 'Bureautique & outils essentiels' },
+  { value: 'B', label: 'Niveau B – Intermédiaire', icon: '🟡', desc: 'Design graphique & création' },
+  { value: 'C', label: 'Niveau C – Avancé',        icon: '🔴', desc: 'Développement & cybersécurité' },
+]
+
+function ouvrirChoixNiveau() {
+  niveauChoisi.value = ''
+  erreurInscription.value = ''
+  showNiveauModal.value = true
+}
+
+function fermerChoixNiveau() {
+  showNiveauModal.value = false
+}
+
+async function confirmerNiveau() {
+  if (!niveauChoisi.value) return
+  inscriptionEnCours.value = true
+  erreurInscription.value = ''
+  try {
+    await api.post('/inscriptions/inscrire/', { niveau: niveauChoisi.value })
+    showNiveauModal.value = false
+    await charger()   // recharge l'état d'inscription (passera en "en attente")
+  } catch (e) {
+    erreurInscription.value = e?.response?.data?.error || "Impossible d'enregistrer l'inscription."
+  } finally {
+    inscriptionEnCours.value = false
+  }
+}
 
 const estConfirme = computed(() => inscription.value?.statut === 'confirme')
 
@@ -726,6 +799,20 @@ onMounted(charger)
 .cert-modal-box { position: relative; background: white; border-radius: 16px; max-width: 960px; width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 16px; }
 .cert-modal-close { position: absolute; top: 8px; right: 12px; background: none; border: none; font-size: 1.8rem; line-height: 1; cursor: pointer; color: var(--gray); z-index: 2; }
 .cert-modal-close:hover { color: #333; }
+
+/* Choix de niveau (modale d'inscription) */
+.niveau-choices { display: flex; flex-direction: column; gap: 10px; }
+.niveau-choice {
+  display: flex; align-items: center; gap: 14px;
+  border: 2px solid #e5e7eb; border-radius: 12px;
+  padding: 14px 16px; cursor: pointer; transition: .2s;
+}
+.niveau-choice:hover { border-color: #4CAF50; background: #f0faf0; }
+.niveau-choice--active { border-color: #4CAF50; background: #e8f5e9; }
+.niv-icon { font-size: 1.5rem; flex-shrink: 0; }
+.niveau-choice div { display: flex; flex-direction: column; }
+.niveau-choice strong { font-size: 14px; color: #222; }
+.niveau-choice small { font-size: 11px; color: #888; margin-top: 2px; }
 
 .cert-iframe-wrap { overflow: hidden; margin: 0 auto; }
 .cert-iframe { width: 1122px; height: 794px; border: 0; transform-origin: top left; pointer-events: none; }
