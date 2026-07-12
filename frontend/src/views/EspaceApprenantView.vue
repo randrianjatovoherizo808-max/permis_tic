@@ -167,6 +167,9 @@
               <p v-if="c.niveau">Niveau {{ c.niveau }}</p>
               <p v-if="c.mention">Mention : {{ c.mention }}</p>
               <p class="fd-date">📅 Délivré le {{ formatDate(c.date_delivrance) }}</p>
+              <button class="btn btn-outline btn-sm cert-view-btn" @click="voirCertificat(c)">
+                👁️ Visualiser le certificat
+              </button>
             </div>
           </div>
         </div>
@@ -192,6 +195,60 @@
         </div>
       </div>
     </div>
+
+    <!-- MODALE : Visualisation du certificat (lecture seule) -->
+    <div v-if="certificatOuvert" class="cert-modal-overlay" @click.self="fermerCertificat" @contextmenu.prevent>
+      <div class="cert-modal-box">
+        <button class="cert-modal-close" @click="fermerCertificat" title="Fermer">×</button>
+
+        <div class="cert-view" @contextmenu.prevent>
+          <div class="cert-view-header">
+            <span class="cert-view-logo">🎓</span>
+            <h2>PERMIS TIC</h2>
+            <p>Plateforme de formation numérique</p>
+          </div>
+
+          <h3 class="cert-view-title">Certificat de formation</h3>
+
+          <div class="cert-view-body">
+            <p class="cert-view-line">
+              Ce certificat est délivré à
+              <strong>{{ auth.user?.prenom }} {{ auth.user?.nom }}</strong>
+            </p>
+            <p class="cert-view-line" v-if="certificatOuvert.formation_nom">
+              pour la formation <strong>{{ certificatOuvert.formation_nom }}</strong>
+            </p>
+            <p class="cert-view-line" v-if="certificatOuvert.niveau">
+              Niveau <strong>{{ certificatOuvert.niveau }}</strong>
+            </p>
+            <p class="cert-view-line" v-if="certificatOuvert.mention">
+              Mention : <strong>{{ certificatOuvert.mention }}</strong>
+            </p>
+
+            <div class="cert-view-grid">
+              <div>
+                <label>N° de certificat</label>
+                <span>{{ certificatOuvert.numero }}</span>
+              </div>
+              <div>
+                <label>Date de délivrance</label>
+                <span>{{ formatDate(certificatOuvert.date_delivrance) }}</span>
+              </div>
+              <div v-if="certificatOuvert.date_debut">
+                <label>Début de formation</label>
+                <span>{{ formatDate(certificatOuvert.date_debut) }}</span>
+              </div>
+              <div v-if="certificatOuvert.date_fin">
+                <label>Fin de formation</label>
+                <span>{{ formatDate(certificatOuvert.date_fin) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="cert-view-watermark">Document consultable uniquement — aperçu non téléchargeable</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -208,6 +265,7 @@ const inscription = ref(null)
 const lecons      = ref([])
 const notes       = ref([])
 const certificats = ref([])
+const certificatOuvert = ref(null)
 const tabActif    = ref('formations')
 
 const estConfirme = computed(() => inscription.value?.statut === 'confirme')
@@ -245,6 +303,18 @@ const statsAppr = computed(() => {
 function ressources(lecon) {
   if (!lecon.ressources) return []
   return lecon.ressources.split(',').map(r => r.trim()).filter(Boolean)
+}
+
+// ✅ Ouvre uniquement un certificat déjà présent dans `certificats.value`,
+// lequel provient de /certificats/mes-certificats/ (filtré côté serveur sur
+// l'utilisateur connecté). Aucun appel par identifiant n'est fait ici, donc
+// un apprenant ne peut jamais visualiser le certificat d'un autre.
+function voirCertificat(c) {
+  certificatOuvert.value = c
+}
+
+function fermerCertificat() {
+  certificatOuvert.value = null
 }
 
 function formatDate(d) {
@@ -388,10 +458,35 @@ onMounted(charger)
 
 /* Certificat */
 .certificat-dispo { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cert-view-btn { margin-top: 12px; }
+
+/* Modale de visualisation du certificat (lecture seule) */
+.cert-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.cert-modal-box { position: relative; background: white; border-radius: 20px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.cert-modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 1.8rem; line-height: 1; cursor: pointer; color: var(--gray); z-index: 2; }
+.cert-modal-close:hover { color: #333; }
+
+.cert-view { padding: 40px 32px 32px; text-align: center; border: 3px double var(--primary); margin: 16px; border-radius: 12px; user-select: none; -webkit-user-select: none; }
+.cert-view-header { margin-bottom: 20px; }
+.cert-view-logo { font-size: 2.5rem; display: block; margin-bottom: 6px; }
+.cert-view-header h2 { margin: 0; font-weight: 900; letter-spacing: 1px; color: var(--primary); }
+.cert-view-header p { margin: 2px 0 0; font-size: 0.8rem; color: var(--gray); }
+.cert-view-title { margin: 20px 0; font-size: 1.3rem; font-weight: 800; }
+.cert-view-body { text-align: left; }
+.cert-view-line { margin: 6px 0; font-size: 0.95rem; }
+.cert-view-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.cert-view-grid label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; }
+.cert-view-grid span { font-size: 0.9rem; }
+.cert-view-watermark { margin-top: 24px; font-size: 0.72rem; color: var(--gray); font-style: italic; }
+
+@media print {
+  .cert-modal-overlay { display: none !important; }
+}
 
 @media (max-width: 600px) {
   .profile-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .info-grid { grid-template-columns: 1fr; }
   .tab { font-size: 0.72rem; padding: 12px 4px; }
+  .cert-view-grid { grid-template-columns: 1fr; }
 }
 </style>
