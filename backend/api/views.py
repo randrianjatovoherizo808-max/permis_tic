@@ -1054,6 +1054,21 @@ def certificat_detail(request, pk):
     return Response(status=204)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def mes_certificats(request):
+    """
+    Retourne uniquement les certificats de l'apprenant actuellement connecté.
+    """
+    certs = (
+        Certificat.objects
+        .filter(apprenant=request.user)
+        .select_related('formation')
+        .order_by('-date_delivrance')
+    )
+    return Response(CertificatSerializer(certs, many=True).data)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  SITES
 # ══════════════════════════════════════════════════════════════════════════════

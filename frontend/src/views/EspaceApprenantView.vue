@@ -156,7 +156,23 @@
 
       <!-- PANEL : Certificats -->
       <div v-if="tabActif === 'certificats'" class="panel">
-        <div class="card" style="text-align:center; padding:40px 20px;">
+
+        <!-- Certificats officiels délivrés par l'administrateur -->
+        <div v-if="certificats.length" class="certificats-list">
+          <div v-for="c in certificats" :key="c.id" class="card certificat-card">
+            <div class="cert-icon">🎓</div>
+            <div class="cert-body">
+              <h3>{{ c.formation_nom || 'Certificat Permis TIC' }}</h3>
+              <p class="cert-numero">N° {{ c.numero }}</p>
+              <p v-if="c.niveau">Niveau {{ c.niveau }}</p>
+              <p v-if="c.mention">Mention : {{ c.mention }}</p>
+              <p class="fd-date">📅 Délivré le {{ formatDate(c.date_delivrance) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aucun certificat officiel délivré pour le moment -->
+        <div v-else class="card" style="text-align:center; padding:40px 20px;">
           <div style="font-size:4rem; margin-bottom:16px;">🎓</div>
           <h3 style="margin-bottom:8px;">Certificat de formation</h3>
           <p style="color:var(--gray); margin-bottom:24px;">
@@ -191,6 +207,7 @@ const loading     = ref(true)
 const inscription = ref(null)
 const lecons      = ref([])
 const notes       = ref([])
+const certificats = ref([])
 const tabActif    = ref('formations')
 
 const estConfirme = computed(() => inscription.value?.statut === 'confirme')
@@ -238,13 +255,20 @@ async function charger() {
   try {
     const { data: inscData } = await api.get('/inscriptions/mon-inscription/')
 
-    // inscData peut être null si aucune inscription
-    inscription.value = inscData ?? null
+    // ✅ Cet endpoint renvoie toujours un tableau (une entrée par niveau/formation).
+    // On sélectionne l'inscription confirmée en priorité, sinon celle en attente,
+    // sinon la première disponible — au lieu d'utiliser le tableau brut comme un objet.
+    const inscriptions = Array.isArray(inscData) ? inscData : (inscData ? [inscData] : [])
+    inscription.value =
+      inscriptions.find(i => i.statut === 'confirme') ||
+      inscriptions.find(i => i.statut === 'en_attente') ||
+      inscriptions[0] ||
+      null
 
     // Ne charger les leçons et notes QUE si l'inscription est confirmée
-    if (inscData?.formation && inscData?.statut === 'confirme') {
+    if (inscription.value?.formation && inscription.value?.statut === 'confirme') {
       try {
-        const { data: lecData } = await api.get('/formations/' + inscData.formation + '/lecons/')
+        const { data: lecData } = await api.get('/formations/' + inscription.value.formation + '/lecons/')
         lecons.value = lecData.results || lecData
       } catch { /* accès cours non disponible */ }
 
@@ -253,6 +277,12 @@ async function charger() {
         notes.value = notesData.results || notesData
       } catch { /* pas de notes encore */ }
     }
+
+    // Certificats délivrés par l'administrateur (indépendant du statut de l'inscription en cours)
+    try {
+      const { data: certData } = await api.get('/certificats/mes-certificats/')
+      certificats.value = certData.results || certData
+    } catch { /* aucun certificat encore délivré */ }
   } catch (e) {
     // Toute erreur (404, réseau…) → pas d'inscription affichée
     inscription.value = null

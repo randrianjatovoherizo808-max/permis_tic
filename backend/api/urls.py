@@ -39,6 +39,7 @@ from .views import (
 
     certificats_list,
     certificat_detail,
+    mes_certificats,
 
     sites_list,
     site_detail,
@@ -130,6 +131,7 @@ urlpatterns = [
     # ═══════════════════════════
     path('certificats/', certificats_list),
     path('certificats/<int:pk>/', certificat_detail),
+    path('certificats/mes-certificats/', mes_certificats),
 
     # ═══════════════════════════
     # SITES
