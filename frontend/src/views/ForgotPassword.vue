@@ -139,8 +139,8 @@ async function envoyerCode() {
     const res = await api.post('/auth/forgot-password/', { email: email.value })
     codeInput.value = res.data.code || ''  // Remplir automatiquement le code
     step.value = 2
-  } catch {
-    error.value = "Erreur lors de l'envoi. Vérifiez votre email."
+  } catch (e) {
+    error.value = e.response?.data?.error || "Erreur lors de l'envoi. Vérifiez votre email."
   } finally {
     loading.value = false
   }
@@ -153,8 +153,8 @@ async function renvoyerCode() {
   try {
     const res = await api.post('/auth/forgot-password/', { email: email.value })
     codeInput.value = res.data.code || ''  // Remplir automatiquement le code
-  } catch {
-    error.value = "Erreur lors du renvoi."
+  } catch (e) {
+    error.value = e.response?.data?.error || "Erreur lors du renvoi."
   } finally {
     loading.value = false
   }

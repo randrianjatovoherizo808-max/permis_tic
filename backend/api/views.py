@@ -150,23 +150,34 @@ def forgot_password(request):
     code = f"{random.randint(0, 999999):06d}"
     OtpCode.objects.create(user=user, code=code)
 
-    _send_html_email(
-        subject   = '🔐 Votre code de vérification – Permis TIC',
-        to_email  = email,
-        preheader = f'Votre code de réinitialisation : {code}',
-        body_html = (
-            f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
-            f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
-            f"<p>Voici votre code de vérification à 6 chiffres :</p>"
-            f"<div style='text-align:center;margin:28px 0;'>"
-            f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
-            f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
-            f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
-            f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
-            f"border-radius:6px;font-size:13px;color:#555;'>"
-            f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
-        ),
-    )
+    # ✅ Si l'envoi SMTP échoue (identifiants invalides, serveur injoignable…),
+    # on ne doit pas laisser planter la requête en 500 brut : on log l'erreur
+    # côté serveur (visible dans les logs Render) et on renvoie une réponse
+    # claire au frontend, au lieu d'un crash Django non contrôlé.
+    try:
+        _send_html_email(
+            subject   = '🔐 Votre code de vérification – Permis TIC',
+            to_email  = email,
+            preheader = f'Votre code de réinitialisation : {code}',
+            body_html = (
+                f"<p>Bonjour <strong>{user.first_name}</strong>,</p>"
+                f"<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>"
+                f"<p>Voici votre code de vérification à 6 chiffres :</p>"
+                f"<div style='text-align:center;margin:28px 0;'>"
+                f"<span style='font-size:42px;font-weight:900;letter-spacing:12px;"
+                f"color:#4CAF50;font-family:monospace;'>{code}</span></div>"
+                f"<p style='text-align:center;font-size:13px;color:#888;'>Ce code est valide <strong>10 minutes</strong>.</p>"
+                f"<p style='margin-top:20px;padding:14px 18px;background:#fff8e1;border-left:4px solid #FF9800;"
+                f"border-radius:6px;font-size:13px;color:#555;'>"
+                f"⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>"
+            ),
+        )
+    except Exception as e:
+        print(f"[forgot_password] Échec de l'envoi de l'email à {email} : {e}")
+        return Response(
+            {'error': "Le service d'envoi d'email est momentanément indisponible. Veuillez réessayer dans quelques minutes."},
+            status=503,
+        )
     return Response({'message': 'Code envoyé'})
     
 @api_view(['POST'])
