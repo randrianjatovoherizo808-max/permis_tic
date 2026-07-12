@@ -24,6 +24,7 @@
             />
           </div>
           <div v-if="error" class="alert-error">{{ error }}</div>
+          <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
           <button class="btn-primary" @click="envoyerCode" :disabled="loading">
             <span v-if="loading" class="spinner"></span>
             {{ loading ? 'Envoi…' : 'Envoyer le code' }}
@@ -42,6 +43,7 @@
               v-model="codeInput"
               type="text"
               inputmode="numeric"
+              autocomplete="one-time-code"
               placeholder="Entrez le code reçu"
               maxlength="6"
               :disabled="loading"
@@ -49,12 +51,15 @@
             />
           </div>
           <div v-if="error" class="alert-error">{{ error }}</div>
+          <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
           <button class="btn-primary" @click="verifierCode" :disabled="loading || codeInput.length < 6">
             <span v-if="loading" class="spinner"></span>
             {{ loading ? 'Vérification…' : 'Valider le code' }}
           </button>
           <div class="row-links">
-            <button class="link-back plain" @click="renvoyerCode">Code non reçu ?</button>
+            <button class="link-back plain" @click="renvoyerCode" :disabled="resendCooldown > 0 || loading">
+              {{ resendCooldown > 0 ? `Renvoyer dans ${resendCooldown}s` : 'Code non reçu ?' }}
+            </button>
             <button class="link-back plain" @click="step = 1">Annuler</button>
           </div>
         </template>
@@ -115,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import api from '../services/api'
 
 const step            = ref(1)
@@ -127,9 +132,50 @@ const showPwd         = ref(false)
 const showPwd2        = ref(false)
 const loading         = ref(false)
 const error           = ref('')
+const successMsg      = ref('')
+const resendCooldown  = ref(0)
+
+let successTimer = null
+let cooldownTimer = null
+
+// Affiche une notification de succès qui disparaît automatiquement après 4s
+function afficherSucces(msg) {
+  successMsg.value = msg
+  clearTimeout(successTimer)
+  successTimer = setTimeout(() => { successMsg.value = '' }, 4000)
+}
+
+// Démarre le compte à rebours de 60s avant de pouvoir renvoyer un code
+function demarrerCooldown() {
+  resendCooldown.value = 60
+  clearInterval(cooldownTimer)
+  cooldownTimer = setInterval(() => {
+    if (resendCooldown.value <= 1) {
+      resendCooldown.value = 0
+      clearInterval(cooldownTimer)
+    } else {
+      resendCooldown.value--
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(() => {
+  clearTimeout(successTimer)
+  clearInterval(cooldownTimer)
+})
+
+// ✅ OTP auto-fill : valide automatiquement dès que les 6 chiffres sont saisis
+// (que ce soit tapé manuellement, collé, ou rempli automatiquement par le
+// navigateur via autocomplete="one-time-code"), sans changer le bouton existant.
+watch(codeInput, (val) => {
+  if (val.length === 6 && step.value === 2 && !loading.value) {
+    verifierCode()
+  }
+})
 
 async function envoyerCode() {
   error.value = ''
+  successMsg.value = ''
   if (!email.value || !email.value.includes('@')) {
     error.value = 'Adresse email invalide.'
     return
@@ -139,6 +185,8 @@ async function envoyerCode() {
     const res = await api.post('/auth/forgot-password/', { email: email.value })
     codeInput.value = res.data.code || ''  // Remplir automatiquement le code
     step.value = 2
+    demarrerCooldown()
+    afficherSucces('Code envoyé avec succès ! Vérifiez votre boîte mail.')
   } catch (e) {
     error.value = e.response?.data?.error || "Erreur lors de l'envoi. Vérifiez votre email."
   } finally {
@@ -147,12 +195,16 @@ async function envoyerCode() {
 }
 
 async function renvoyerCode() {
+  if (resendCooldown.value > 0) return
   error.value = ''
+  successMsg.value = ''
   codeInput.value = ''
   loading.value = true
   try {
     const res = await api.post('/auth/forgot-password/', { email: email.value })
     codeInput.value = res.data.code || ''  // Remplir automatiquement le code
+    demarrerCooldown()
+    afficherSucces('Nouveau code envoyé avec succès !')
   } catch (e) {
     error.value = e.response?.data?.error || "Erreur lors du renvoi."
   } finally {
@@ -163,12 +215,13 @@ async function renvoyerCode() {
 async function verifierCode() {
   if (codeInput.value.length < 6) return
   error.value = ''
+  successMsg.value = ''
   loading.value = true
   try {
     await api.post('/auth/verify-otp/', { email: email.value, code: codeInput.value })
     step.value = 3
   } catch (e) {
-    error.value = e.response?.data?.error || 'Code incorrect.'
+    error.value = e.response?.data?.error || 'Code incorrect ou expiré. Veuillez réessayer ou demander un nouveau code.'
     codeInput.value = ''
   } finally {
     loading.value = false
@@ -346,6 +399,22 @@ async function changerMotDePasse() {
   margin-bottom: 12px;
 }
 
+.alert-success {
+  background: #eef9ee;
+  color: #2e7d32;
+  border-left: 3px solid #4CAF50;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .btn-primary {
   width: 100%;
   padding: 13px;
@@ -397,6 +466,12 @@ async function changerMotDePasse() {
 .link-back.plain {
   color: #888;
   font-weight: 500;
+}
+
+.link-back.plain:disabled {
+  color: #bbb;
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 .row-links {
