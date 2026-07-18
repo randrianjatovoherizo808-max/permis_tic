@@ -60,8 +60,15 @@ _HOSTS_ALWAYS = [
     '127.0.0.1',
     'localhost',
 ]
+def _clean_host(h):
+    """Tolère une valeur mal saisie sur Render (avec schéma http(s):// et/ou
+    un '/' final) et renvoie le nom d'hôte nu attendu par Django."""
+    h = h.strip()
+    h = h.replace('https://', '').replace('http://', '')
+    return h.strip('/')
+
 _HOSTS_EXTRA = [
-    h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()
+    _clean_host(h) for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()
 ]
 ALLOWED_HOSTS = list(dict.fromkeys(_HOSTS_ALWAYS + _HOSTS_EXTRA))
 
