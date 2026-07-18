@@ -585,14 +585,13 @@ def stats(request):
     nb_confirmes   = Inscription.objects.filter(statut='confirme').count()
     nb_certificats = Certificat.objects.count()
 
-    # Taux de réussite réel : % d'étudiants ayant au moins une note >= 50
-    from django.db.models import Avg
-    total_notes = Note.objects.count()
-    if total_notes == 0:
+    # Taux de réussite réel :
+    # (Nombre d'apprenants ayant obtenu un certificat ÷ Nombre total d'apprenants) × 100
+    if nb_apprenants == 0:
         reussite_reel = 0
     else:
-        notes_reussies = Note.objects.filter(valeur__gte=50).count()
-        reussite_reel  = round((notes_reussies / total_notes) * 100)
+        apprenants_reussis = Certificat.objects.values('apprenant_id').distinct().count()
+        reussite_reel = round((apprenants_reussis / nb_apprenants) * 100)
 
     return Response({
         'formations':              nb_formations,
